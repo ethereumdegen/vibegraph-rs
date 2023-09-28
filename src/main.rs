@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use ethers::abi::{RawLog, LogParam};
-use ethers::providers::JsonRpcClient;
+use ethers::providers::{JsonRpcClient, ProviderError};
 use tokio::time::{sleep, interval, Duration};
 
 use ethers::prelude::{
@@ -205,15 +205,7 @@ impl ContractEvent {
     } 
     
 }
-
-#[derive(Debug)]
-struct ContractEventsResult {
-    contract_address: Address,
-    from_block: U64,
-    to_block: U64,
-    event_logs: Vec<ContractEvent >,
-}
-
+ 
 
 
 
@@ -251,25 +243,36 @@ async fn collect_events(
         .expect("Failed to parse contract address");
         
     let block_gap = match app_state.indexing_state.synced {
-        true => {app_state.indexing_config.course_block_gap }
-        false => {app_state.indexing_config.fine_block_gap }
+        true => {app_state.indexing_config.fine_block_gap }
+        false => {app_state.indexing_config.course_block_gap }
     };
     
     let contract_abi: &ethers::abi::Abi  = &app_state.contract_config.abi; 
 
-
+  
     let start_block = app_state.indexing_state.current_indexing_block;
  
+      println!("index starting at {}", start_block );
+    
+    
     let end_block = start_block + std::cmp::max(block_gap - 1, 1);
 
-    let contract_event_result = read_contract_events(
+    let event_logs = match read_contract_events(
         contract_address,
         contract_abi,
         start_block,
         end_block,
         provider
-    ).await;
-
+    ).await {
+        Ok( evts ) => evts,
+        Err(e) => { 
+                
+            //we may need to try reducing the block gap   here !    
+            //since we got a provider error   
+              
+            return app_state
+        }       
+    };
 
     //progress the current indexing block
     app_state.indexing_state.current_indexing_block = end_block + 1; 
@@ -289,7 +292,7 @@ async fn read_contract_events<M:  JsonRpcClient>(
     end_block: U64,
     provider: Provider<M>,
 
- )-> Result<ContractEventsResult, Box<dyn Error>>  {
+ )-> Result< Vec<ContractEvent >, ProviderError>  {
 
 
    // let provider = Provider::<Http>::try_from(HTTP_URL)?;
@@ -332,12 +335,7 @@ async fn read_contract_events<M:  JsonRpcClient>(
       
     
 
-    Ok(ContractEventsResult {
-        contract_address,
-        from_block: start_block,
-        to_block: end_block,
-        event_logs,
-    })
+    Ok( event_logs )
 
  
 
@@ -449,5 +447,5 @@ async fn main() {
     };
    
 
-    start(app_state);
+    start(app_state).await;
 }

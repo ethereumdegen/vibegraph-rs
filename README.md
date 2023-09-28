@@ -40,9 +40,12 @@
   
   1. Add an interval which fetches the current eth blocknumber so we know if we are synced up 
   
-  2. Store logs to sql database 
+  1.1 never request beyond the current blocknumber -- else we may miss some events ! 
   
-  3. add the 'expansion factor' to account for provider failures (give provider less load) 
+  
+  2.  one synced, dont make a request as often to conserve bandwidth use
+  
+  3. add the 'expansion factor' to mitigate provider failures (give provider less load and attempt again) 
   
   
   

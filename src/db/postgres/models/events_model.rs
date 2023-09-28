@@ -21,36 +21,11 @@ pub struct EventsModel {
 impl EventsModel {  
      
     pub async fn insert_one(
-    event: &ContractEvent
-    ,
+    event: &ContractEvent  ,
   
     psql_db: &Database,
 ) -> Result<i32, PostgresModelError> {
-       // let formatted_address = to_checksum(&parent_public_address, None).to_string();
-    
-         
-         
-         /* 
-                contract_address VARCHAR(255) NOT NULL, 
-                
-                name VARCHAR(255) NOT NULL,
-                
-                signature VARCHAR(255) NOT NULL, 
-                
-                args TEXT , 
-                data TEXT ,
-                transaction_hash VARCHAR(255) ,
-                
-                block_number INTEGER NOT NULL,
-                
-                block_hash VARCHAR(255) NOT NULL,
-                
-                log_index INTEGER NOT NULL,
-                transaction_index INTEGER NOT NULL,    
-                
-             
-         
-         */
+       
          
          let contract_address = to_checksum(&event.address, None).to_string();
          
@@ -91,7 +66,7 @@ impl EventsModel {
             log_index,
             transaction_index            
             ) 
-            VALUES ($1, $2)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING id;
             ",
             &[

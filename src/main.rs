@@ -24,6 +24,8 @@ use ethers::prelude::Http;
 use std::error::Error;
 mod db; 
 
+use log::*;
+
 
 /*
 mod abis {
@@ -252,7 +254,7 @@ async fn collect_events(
   
     let start_block = app_state.indexing_state.current_indexing_block;
  
-      println!("index starting at {}", start_block );
+     info!("index starting at {}", start_block);
     
     
     let end_block = start_block + std::cmp::max(block_gap - 1, 1);
@@ -273,6 +275,14 @@ async fn collect_events(
             return app_state
         }       
     };
+    
+    
+    for event_log in event_logs {
+        
+          info!("decoded event log {:?}", event_log);
+        
+    }
+    
 
     //progress the current indexing block
     app_state.indexing_state.current_indexing_block = end_block + 1; 
@@ -371,31 +381,20 @@ fn try_identify_event_for_log(
 
 
 async fn start(mut app_state: AppState){
-
-
+ 
 
     //initialize state 
 
     app_state.indexing_state.current_indexing_block = 
         app_state.contract_config.start_block;
-
-
-
-
-
-   
-
-    let mut interval = interval(Duration::from_secs(5));
-
-
-    loop {
  
 
+    let mut interval = interval(Duration::from_secs(5));
+ 
+    loop {  
         app_state = collect_events( app_state ).await;
-
-
-        interval.tick().await;  
-      
+ 
+        interval.tick().await;   
 
     }
 
@@ -406,6 +405,7 @@ async fn start(mut app_state: AppState){
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
     dotenv().expect(".env file not found");
 
     let rpc_uri =  std::env::var("RPC_URL")
@@ -426,9 +426,18 @@ async fn main() {
     
     let contract_config = ContractConfig {
         address: "0xdC726D36a2f1864D592fF8d420710cd2C3D350aa".to_string(),
-        abi:  serde_json::from_str( abi_string ).unwrap(),  //Abigen::new("Payspec", "abi/payspec.abi.json").unwrap(),
+        abi:  serde_json::from_str( abi_string ).unwrap(),   
         start_block: 4382418.into(),
         name: "payspec" .to_string()
+    };
+
+    let abi_string_alt = include_str!("../abi/artblox.abi.json");
+
+    let alt_contract_config = ContractConfig {
+        address: "0x4590383ae832ebdfb262d750ee81361e690cfc9c".to_string(),
+        abi:  serde_json::from_str( abi_string_alt ).unwrap(),   
+        start_block: 4182418.into(),
+        name: "artblox" .to_string()
     };
 
     let indexing_state = IndexingState::default();
@@ -442,7 +451,7 @@ async fn main() {
     let mut app_state = AppState {
         database: Arc::clone(&database),
         indexing_config,
-        contract_config,
+        contract_config: alt_contract_config,
         indexing_state
     };
    

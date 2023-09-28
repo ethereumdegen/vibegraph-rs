@@ -3,10 +3,14 @@
  
 use std::collections::HashMap;
 
+use ethers::abi::{RawLog, LogParam};
+use ethers::providers::JsonRpcClient;
 use tokio::time::{sleep, interval, Duration};
 
-use ethers::prelude::{Event, Provider, Middleware,Contract};
-use ethers::types::{Log, Filter, Address, U256};
+use ethers::prelude::{
+     abigen, Abigen , 
+     Event, Provider, Middleware,Contract};
+use ethers::types::{Log, Filter, Address, U256, U64, H256};
 
 use std::sync::Arc;
 use crate::db::postgres::postgres_db::Database;
@@ -14,18 +18,30 @@ use crate::db::postgres::postgres_db::Database;
 use dotenvy::dotenv;
 use std::env;
 
+use std::str::FromStr;
+
 use ethers::prelude::Http;
 use std::error::Error;
 mod db; 
 
 
+/*
+mod abis {
+    ethers::contract::abigen!(
+        PayspecAbi,
+        "abi/payspec.abi.json",
+        event_derives (serde::Deserialize, serde::Serialize);
+    );
+}
+
+*/
 
 
 
 #[derive(Debug, Clone)]
 pub struct IndexingState {
 
-    pub current_indexing_block : U256,
+    pub current_indexing_block : U64,
     pub synced: bool 
 
 }
@@ -74,27 +90,16 @@ pub struct IndexingConfig {
 #[derive(Debug, Clone)]
 pub struct ContractConfig {
     pub address: String,
-    pub start_block: U256,
-    pub name: String,   
+    pub start_block: U64,
+    pub name: String,  
+    pub abi: ethers::abi::Abi 
 }
 
  
 
 pub const DEFAULT_FINE_BLOCK_GAP: u32 = 20;
 pub const DEFAULT_COURSE_BLOCK_GAP: u32 = 8000;
-
-#[derive(Debug, Clone)]
-pub struct ContractEventRaw {
-    pub block_number: U256,
-    pub block_hash: String,
-    pub transaction_index: U256,
-    pub address: String,
-    pub data: String,
-    pub topics: Vec<String>,
-    pub transaction_hash: String,
-    pub log_index: U256,
-}
-
+ 
 
 /*
 #[derive(Debug, Clone)]
@@ -113,26 +118,100 @@ pub struct ContractEvent {
   */
 
 
+/*
+#[derive(Debug, Clone)]
+pub struct ContractEventRaw {
+    pub block_number: U256,
+    pub block_hash: String,
+    pub transaction_index: U256,
+    pub address: String,
+    pub data: String,
+    pub topics: Vec<String>,
+    pub transaction_hash: String,
+    pub log_index: U256,
+}*/
+
+#[derive(Debug,Clone)]
+struct ContractEventRaw {
+     block_number: Option<U64>,
+    block_hash: Option< H256 >,
+     transaction_index: Option<U64>,
+     transaction_hash: Option< H256 > ,
+         data: Vec<u8>,
+    topics: Vec<H256> , 
+  
+    address: Address,  
+    log_index: Option < U256 > ,
+   
+}
+
+impl ContractEventRaw {
+    
+    pub fn from_log(evt:Log) -> Self {
+         Self {
+                address: evt.address,
+                topics: evt.topics,
+                data:  evt.data.0.to_vec(),
+                transaction_hash: evt.transaction_hash,
+                transaction_index: evt.transaction_index ,
+                block_number: evt.block_number,
+                block_hash: evt.block_hash,
+                log_index: evt.log_index , 
+            } 
+            
+    }
+    
+}
+
 #[derive(Debug)]
 struct ContractEvent {
     name: String,
-    signature: String,
-    args: Vec<(String, String)>, // Adjust the data structure as per your needs
+    signature: H256,
+    args: Vec< LogParam >, // Adjust the data structure as per your needs
     address: Address,
     data: Vec<u8>,
-    transaction_hash: Vec<u8>,
-    block_number: U256,
-    block_hash: Vec<u8>,
-    log_index: U256,
-    transaction_index: U256,
+    transaction_hash: Option< H256 > ,
+    block_number: Option<U64>,
+    block_hash: Option< H256 >,
+    log_index: Option < U256 > ,
+    transaction_index: Option<U64>,
+}
+
+impl ContractEvent {
+   
+    pub fn new( 
+        
+        name: String,
+        signature:H256, 
+        args: Vec<LogParam>,
+        evt:  Log,
+            
+    ) ->  Self {
+        Self {
+            name,
+            signature,
+            args,
+             
+            address: evt.address,
+               // topics: evt.topics,
+            data:  evt.data.0.to_vec(),
+            transaction_hash: evt.transaction_hash,
+            transaction_index: evt.transaction_index ,
+            block_number: evt.block_number,
+            block_hash: evt.block_hash,
+            log_index: evt.log_index , 
+            
+        }
+    } 
+    
 }
 
 #[derive(Debug)]
 struct ContractEventsResult {
     contract_address: Address,
-    from_block: U256,
-    to_block: U256,
-    events: Vec<ContractEvent>,
+    from_block: U64,
+    to_block: U64,
+    event_logs: Vec<ContractEvent >,
 }
 
 
@@ -163,16 +242,20 @@ async fn collect_events(
     //chug through with this 
     // read_contract_events 
 
-    let rpc_uri = app_state.indexing_config.rpc_uri;
+    let rpc_uri = &app_state.indexing_config.rpc_uri;
 
     let provider = Provider::<Http>::try_from(rpc_uri).unwrap( );
-
-    let contract_address = app_state.contract_config.address;
     
+         
+   let contract_address = Address::from_str(&app_state.contract_config.address)
+        .expect("Failed to parse contract address");
+        
     let block_gap = match app_state.indexing_state.synced {
         true => {app_state.indexing_config.course_block_gap }
         false => {app_state.indexing_config.fine_block_gap }
     };
+    
+    let contract_abi: &ethers::abi::Abi  = &app_state.contract_config.abi; 
 
 
     let start_block = app_state.indexing_state.current_indexing_block;
@@ -199,11 +282,11 @@ async fn collect_events(
 
 
 
-async fn read_contract_events<M: Middleware>( 
+async fn read_contract_events<M:  JsonRpcClient>( 
     contract_address: Address,
-    contract_abi: ethers::abi::Abi,
-    start_block: U256,
-    end_block: U256,
+    contract_abi:  &ethers::abi::Abi,
+    start_block: U64,
+    end_block: U64,
     provider: Provider<M>,
 
  )-> Result<ContractEventsResult, Box<dyn Error>>  {
@@ -215,60 +298,77 @@ async fn read_contract_events<M: Middleware>(
     //https://www.gakonst.com/ethers-rs/events/logs-and-filtering.html
     let filter = Filter::new()
     .address(vec![contract_address])
-    .from_block(start_block)
-    .to_block(end_block) ;
-
+    .from_block(start_block )
+    .to_block(end_block ) ;
+    
+    //https://docs.rs/ethers-contract/latest/ethers_contract/
+    
+    //https://github.com/gakonst/ethers-rs/issues/1810
+    //https://github.com/ethers-io/ethers.js/issues/179
+    
     let raw_events: Vec<Log> = client.get_logs(&filter).await?;
 
-
-    let decoded_events: Vec<ContractEvent> = raw_events
+  //   https://github.com/gakonst/ethers-rs/issues/2541
+    
+    let contract = Contract::new(
+        contract_address, contract_abi.clone(), Arc::new(client)
+        ) ;
+        
+   
+        
+    let event_logs = raw_events
         .into_iter()
-        .filter_map(|evt| {
-            let decode_result = contract_abi.parse_log(evt.clone()).ok()?;
-
-            Some(ContractEvent {
-                name: decode_result.name,
-                signature: decode_result.signature,
-                args: decode_result.args.iter().map(|(k, v)| (k.clone(), v.to_string())).collect(), 
-                address: evt.address,
-                data: evt.data.0.to_vec(),
-                transaction_hash: evt.transaction_hash,
-                block_number: evt.block_number,
-                block_hash: evt.block_hash,
-                log_index: evt.log_index.unwrap_or(U256::zero()),
-                transaction_index: evt.transaction_index.unwrap_or(U256::zero()),
-            })
-        })
-        .collect();
+        . filter_map(  |evt| { 
+            
+             try_identify_event_for_log(evt.clone(), &contract.abi())
+            .map(
+                |(name, signature, args)| 
+                ContractEvent::new(name, signature, args, evt)
+                )
+             
+            
+        }).collect();
+     
+      
+    
 
     Ok(ContractEventsResult {
         contract_address,
         from_block: start_block,
         to_block: end_block,
-        events: decoded_events,
+        event_logs,
     })
 
-
-/*
-    println!("{} pools found!", logs.iter().len());
-    for log in logs.iter() {
-        let token0 = Address::from(log.topics[1]);
-        let token1 = Address::from(log.topics[2]);
-        let fee_tier = U256::from_big_endian(&log.topics[3].as_bytes()[29..32]);
-        let tick_spacing = U256::from_big_endian(&log.data[29..32]);
-        let pool = Address::from(&log.data[44..64].try_into()?);
-        println!(
-            "pool = {pool}, token0 = {token0}, token1 = {token1}, fee = {fee_tier}, spacing = {tick_spacing}"
-        );
-    }*/
-
-
+ 
 
 }
 
 
 
-
+fn try_identify_event_for_log(
+    evt: Log, 
+    contract_abi:  &ethers::abi::Abi
+) -> Option<(String, H256, Vec<LogParam>) > {
+     let contract_events = contract_abi.events();
+      
+      for abi_event in contract_events { 
+                let abi_event_topic = abi_event.signature();  
+                    
+                    if let Some(evt_topic) =  evt.topics.first() {
+                        if  abi_event_topic == *evt_topic  {
+                            let event_name = abi_event.name.clone();
+                            let full_log =  abi_event.parse_log( evt.into() ).unwrap(); 
+                            let full_log_params = full_log.params; 
+                                
+                                //name , signature, args 
+                             return Some((event_name,abi_event_topic, full_log_params)) 
+                        }
+                        
+                        
+                    }  
+            }
+    None 
+}
 
 
 
@@ -323,9 +423,12 @@ async fn main() {
          safe_event_count: 400,
 
     };
-
+     
+    let abi_string = include_str!("../abi/payspec.abi.json");
+    
     let contract_config = ContractConfig {
         address: "0xdC726D36a2f1864D592fF8d420710cd2C3D350aa".to_string(),
+        abi:  serde_json::from_str( abi_string ).unwrap(),  //Abigen::new("Payspec", "abi/payspec.abi.json").unwrap(),
         start_block: 4382418.into(),
         name: "payspec" .to_string()
     };

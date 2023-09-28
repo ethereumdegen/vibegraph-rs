@@ -30,10 +30,7 @@ include_dir = "0.7.3"
 inquire = "0.6.2"
 
 
-
-
-[lib]
-name = "vibegraph_rs"
+ 
 
 
 # cargo run --bin migrate

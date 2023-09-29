@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use ethers::abi::{RawLog, LogParam};
 use ethers::providers::{JsonRpcClient, ProviderError};
+use tokio::sync::Mutex;
 use tokio::time::{sleep, interval, Duration};
 
 use ethers::prelude::{
@@ -24,13 +25,26 @@ use std::str::FromStr;
 
 use ethers::prelude::Http;
 use std::error::Error;
- 
+ use tokio::select;
 
 use log::*;
 
   
  
+#[derive(Debug, Clone)]
+pub struct ChainState {
+
+    pub most_recent_block_number : Option<U64>,
+     
+}
   
+impl Default for ChainState {
+    fn default() -> Self {
+        Self{
+            most_recent_block_number: None 
+        }
+    }
+}
  
    
 
@@ -39,7 +53,9 @@ use log::*;
 pub struct IndexingState {
 
     pub current_indexing_block : U64,
-    pub synced: bool 
+    pub synced: bool,
+    
+    pub provider_failure_level: u32
 
 }
 
@@ -49,7 +65,8 @@ impl Default for IndexingState {
     fn default() -> Self {
         Self {
             current_indexing_block: 0.into(),
-            synced: false 
+            synced: false,
+            provider_failure_level: 0
         }
 
     }
@@ -86,20 +103,27 @@ pub const DEFAULT_COURSE_BLOCK_GAP: u32 = 8000;
  
   
 
-
+//immutable 
+#[derive(Debug, Clone)]
+pub struct AppConfig {
+    pub contract_config: ContractConfig,
+    pub indexing_config: IndexingConfig,
+}
  
 pub struct AppState {
     pub database: Arc<Database>,
-    pub contract_config: ContractConfig,
-    pub indexing_config: IndexingConfig ,
-    pub indexing_state: IndexingState  
+ 
+    pub indexing_state: IndexingState ,
+    
 }
 
  
 //should happen every 5 seconds 
 //is able to mutate app state
 async fn collect_events( 
-    mut app_state:AppState 
+    mut app_state:AppState ,
+    app_config: &AppConfig,
+    chain_state: Arc<Mutex<ChainState>>
 ) -> AppState {
 
     /*
@@ -112,20 +136,45 @@ async fn collect_events(
     //chug through with this 
     // read_contract_events 
 
-    let rpc_uri = &app_state.indexing_config.rpc_uri;
+    let rpc_uri = &app_config.indexing_config.rpc_uri;
 
     let provider = Provider::<Http>::try_from(rpc_uri).unwrap( );
     
-         
-   let contract_address = Address::from_str(&app_state.contract_config.address)
-        .expect("Failed to parse contract address");
+    
+    let most_recent_block_number = match chain_state.lock().await.most_recent_block_number.clone(){
         
-    let block_gap = match app_state.indexing_state.synced {
-        true => {app_state.indexing_config.fine_block_gap }
-        false => {app_state.indexing_config.course_block_gap }
+        Some(block_number) => block_number,
+        None => {  
+            
+            //could not read recent block number so we cant continue 
+            return app_state
+        }
+        
     };
     
-    let contract_abi: &ethers::abi::Abi  = &app_state.contract_config.abi; 
+    
+    
+         
+    let contract_address = Address::from_str(&app_config.contract_config.address)
+        .expect("Failed to parse contract address");
+        
+    let mut block_gap:u32 = match app_state.indexing_state.synced {
+        true => {app_config.indexing_config.fine_block_gap }
+        false => {app_config.indexing_config.course_block_gap }
+    };
+    
+    
+    
+    
+    if app_state.indexing_state.provider_failure_level > 0  {
+        let block_gap_division_factor = std::cmp::max( app_state.indexing_state.provider_failure_level , 8 );
+        
+        block_gap = std::cmp::min( 1 , block_gap / block_gap_division_factor );
+        
+    }
+    
+    
+    let contract_abi: &ethers::abi::Abi  = &app_config.contract_config.abi; 
 
   
     let start_block = app_state.indexing_state.current_indexing_block;
@@ -133,7 +182,12 @@ async fn collect_events(
      info!("index starting at {}", start_block);
     
     
-    let end_block = start_block + std::cmp::max(block_gap - 1, 1);
+    let mut end_block = start_block + std::cmp::max(block_gap - 1, 1);
+    
+    if end_block >= most_recent_block_number {
+        end_block = most_recent_block_number;
+        app_state.indexing_state.synced = true;
+    }
 
     let event_logs = match read_contract_events(
         contract_address,
@@ -145,12 +199,20 @@ async fn collect_events(
         Ok( evts ) => evts,
         Err(e) => { 
                 
-            //we may need to try reducing the block gap   here !    
-            //since we got a provider error   
+           
+            //we increase the failure level which will shrink the block gap 
+            app_state.indexing_state.provider_failure_level += 1 ; 
               
             return app_state
         }       
     };
+        
+        
+    //on success we reduce the failure level 
+    if app_state.indexing_state.provider_failure_level >= 1 {
+          app_state.indexing_state.provider_failure_level -= 1 ; 
+    }
+  
     
     
     for event_log in event_logs {
@@ -176,25 +238,84 @@ async fn collect_events(
 
  
 
-async fn start(mut app_state: AppState){
+async fn start(mut app_state: AppState, app_config: AppConfig ){
  
-
+    
+    
+  
+    let chain_state = Arc::new(Mutex::new(ChainState::default()));
+    
+    
+  
+    
+    
+    
     //initialize state 
 
-    app_state.indexing_state.current_indexing_block = 
-        app_state.contract_config.start_block;
+    app_state.indexing_state.current_indexing_block =  app_config.contract_config.start_block.clone();
+    
+    let app_config_arc = Arc::new( &app_config );
+    
+    
+    info!("Initializing state");
  
-
-    let mut interval = interval(Duration::from_secs(5));
  
-    loop {  
-        app_state = collect_events( app_state ).await;
- 
-        interval.tick().await;   
-
+    let mut initialize_loop_interval = interval(Duration::from_secs(2));
+    loop {
+        
+        let collect_most_recent_block =  collect_blockchain_data(
+             &Arc::clone(&app_config_arc),
+             Arc::clone(&chain_state)
+             ).await;
+             
+        if let Ok(success) = collect_most_recent_block {
+            break;//break the init loop 
+        }
+        
+        initialize_loop_interval.tick().await; //try again after delay 
     }
+    
+    info!("Initialization complete");
+    
+
+    let mut collect_events_interval = interval(Duration::from_secs(5));
+    
+    let mut collect_blockchain_data_interval = interval( Duration::from_secs(40) );
+  
+     loop {
+        select! {
+            _ = collect_events_interval.tick() => {
+                app_state = collect_events(app_state, &Arc::clone(&app_config_arc), Arc::clone(&chain_state)).await;
+            }
+            _ = collect_blockchain_data_interval.tick() => {
+                collect_blockchain_data( &Arc::clone(&app_config_arc),Arc::clone(&chain_state)).await;
+            }
+        }
+    }
+    
 
 }
+
+
+
+
+async fn collect_blockchain_data(  
+     app_config: &AppConfig, 
+     chain_state: Arc<Mutex<ChainState>>
+      ) -> Result< U64, ProviderError> {
+    
+     let rpc_uri = &app_config.indexing_config.rpc_uri;
+
+     let provider = Provider::<Http>::try_from(rpc_uri).unwrap( );
+    
+     let block_number = provider.get_block_number().await?;
+     info!("Current block number: {}", block_number);
+        
+     chain_state.lock().await.most_recent_block_number = Some( block_number );
+    
+     Ok(block_number)
+}
+
 
 
 
@@ -237,20 +358,27 @@ async fn main() {
     };
 
     let indexing_state = IndexingState::default();
-  
-
+   
     //attach database 
     let database = Arc::new(
         Database::connect().await.unwrap()
     ); 
 
-    let mut app_state = AppState {
+    let  app_state = AppState {
         database: Arc::clone(&database),
+         
+        indexing_state
+       
+    };
+    
+     let  app_config = AppConfig {
+        
         indexing_config,
         contract_config: alt_contract_config,
-        indexing_state
+        
+       
     };
    
 
-    start(app_state).await;
+    start(app_state, app_config).await;
 }

@@ -40,15 +40,9 @@
 
  
   ### TODO 
+
   
-  1. Add an interval which fetches the current eth blocknumber so we know if we are synced up 
+  1. once synced, dont make a request as often to conserve bandwidth use
   
-  1.1 never request beyond the current blocknumber -- else we may miss some events ! 
-  
-  
-  2.  one synced, dont make a request as often to conserve bandwidth use
-  
-  3. add the 'expansion factor' to mitigate provider failures (give provider less load and attempt again) 
-  
-  
-  
+  2. when booting up , check to see if events exist in the DB and if so , start from latest block number of them 
+ 

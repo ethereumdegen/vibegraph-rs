@@ -2,7 +2,7 @@
 
 
 
-use ethers::{types::Address, utils::to_checksum};
+use ethers::{types::Address, utils::{to_checksum, hex::FromHexError}};
 
  
 use crate::{db::postgres::postgres_db::Database, event::ContractEvent};
@@ -10,7 +10,7 @@ use crate::{db::postgres::postgres_db::Database, event::ContractEvent};
 use super::model::PostgresModelError;
  
  
-    
+use std::str::FromStr;
    
 pub struct EventsModel {
     
@@ -94,6 +94,66 @@ impl EventsModel {
             }
         }
     }
+     
+     
+     pub async fn find_most_recent_event(
+    psql_db: &Database,
+) -> Result< ContractEvent, PostgresModelError> {
+    
+    let row = psql_db.query_one(
+        "
+        SELECT 
+            contract_address,
+            name,
+            signature,
+            args,
+            data,
+            transaction_hash,
+            block_number,
+            block_hash,
+            log_index,
+            transaction_index,
+            created_at
+        FROM events
+        ORDER BY created_at DESC
+        LIMIT 1;
+        ",
+        &[],
+    ).await;
+
+    match row {
+        Ok(row) => {
+            
+            
+            let contract_address =  &row.get::<_, String>("contract_address"); 
+            
+            
+            let event = ContractEvent {
+                address: Address::from_str ( contract_address ) .map_err(|e|  PostgresModelError::AddressParseError )? ,
+                name: row.get("name"),
+                signature: serde_json::from_str(&row.get::<_, String>("signature")).unwrap(),
+                args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
+                data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
+                transaction_hash: serde_json::from_str(&row.get::<_, String>("transaction_hash")).unwrap(),
+                block_number: Some(u64::from_str(&row.get::<_, String>("block_number")).unwrap().into()),
+                block_hash: serde_json::from_str(&row.get::<_, String>("block_hash")).unwrap(),
+                log_index: Some( (row.get::<_, i64>("log_index")).into()),
+                transaction_index: Some( (row.get::<_, i64>("transaction_index")).into()),
+                // ... any other fields you might have in the ContractEvent struct
+            };
+            
+            
+            Ok( event ) 
+            
+            
+        }, 
+        Err(e) => {
+            eprintln!("Database error: {:?}", e);
+            Err(PostgresModelError::Postgres(e))
+        }
+    }
+}
+     
      
     
 }

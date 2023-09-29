@@ -1,5 +1,7 @@
 
 use std::fmt;
+ 
+use ethers::utils::hex::FromHexError;
 use tokio_postgres::Error as PostgresError;
 use serde_json::Error as SerdeJsonError;
 
@@ -7,36 +9,15 @@ pub trait Model {}
 
 
 
-#[derive(Debug)]
+#[derive(Debug,thiserror::Error)]
 pub enum PostgresModelError {
-    Postgres(PostgresError),
-    SerdeJson(SerdeJsonError),
-}
+    #[error(transparent)]
+    Postgres(#[from] PostgresError),
 
-// Implement the standard Error trait
-impl std::error::Error for PostgresModelError {}
+    #[error(transparent)]
+    SerdeJson(#[from] SerdeJsonError),
 
-// Implement Display for MyPostgresError
-impl fmt::Display for PostgresModelError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            PostgresModelError::Postgres(ref err) => write!(f, "PostgresError: {}", err),
-            PostgresModelError::SerdeJson(ref err) => write!(f, "SerdeJsonError: {}", err),
-        }
-    }
-}
-
-// Implement From trait for tokio_postgres::Error
-impl From<PostgresError> for PostgresModelError {
-    fn from(error: PostgresError) -> Self {
-        PostgresModelError::Postgres(error)
-    }
-}
-
-// Implement From trait for serde_json::Error
-impl From<SerdeJsonError> for PostgresModelError {
-    fn from(error: SerdeJsonError) -> Self {
-        PostgresModelError::SerdeJson(error)
-    }
+    #[error("Error converting from hex")]
+    AddressParseError 
 }
  

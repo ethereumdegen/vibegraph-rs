@@ -37,12 +37,4 @@
   ![image](https://github.com/ethereumdegen/vibegraph-rs/assets/6249263/85bbdf4b-fcab-49e4-884b-65f038100381)
   Event logs stored to Supabase (PSQL) 
 
-
  
-  ### TODO 
-
-  
-  1. once synced, dont make a request as often to conserve bandwidth use
-  
- 
-  2. improve waht happens when we are fully synced 

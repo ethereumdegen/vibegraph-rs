@@ -9,19 +9,24 @@ cargo add vibegraph
 ```   
 ___
    
+   
+ ###  Quickstart
+   ```
+   cargo run config/payspec_config.json   
+   ```
+   ___
+   
    Example config: 
    ``` 
-   
-    let abi_string = include_str!("../abi/artblox.abi.json");
-
-    let contract_config = ContractConfig {
-        address: "0x4590383ae832ebdfb262d750ee81361e690cfc9c".to_string(),
-        abi:  serde_json::from_str( abi_string ).unwrap(),   
-        start_block: 4182418.into(),
-        name: "artblox" .to_string()
-    };
-   
-    start(app_state).await;
+    
+     let  app_config = AppConfig {
+        
+        indexing_config,
+        contract_config 
+       
+    }; 
+    
+    Vibegraph::init( &app_config ).await;
     
    ```
    

@@ -44,5 +44,5 @@
   
   1. once synced, dont make a request as often to conserve bandwidth use
   
-  2. when booting up , check to see if events exist in the DB and if so , start from latest block number of them 
  
+  2. improve waht happens when we are fully synced 

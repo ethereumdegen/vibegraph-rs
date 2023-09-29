@@ -96,9 +96,14 @@ impl EventsModel {
     }
      
      
-     pub async fn find_most_recent_event(
+pub async fn find_most_recent_event(
+    contract_address: Address,
     psql_db: &Database,
 ) -> Result< ContractEvent, PostgresModelError> {
+    
+    
+    let parsed_contract_address = to_checksum(&contract_address, None).to_string();
+         
     
     let row = psql_db.query_one(
         "
@@ -115,10 +120,11 @@ impl EventsModel {
             transaction_index,
             created_at
         FROM events
+        WHERE (contract_address) = ($1)
         ORDER BY created_at DESC
         LIMIT 1;
         ",
-        &[],
+        &[&parsed_contract_address],
     ).await;
 
     match row {

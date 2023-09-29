@@ -12,7 +12,7 @@ use ethers::prelude::{
      abigen, Abigen , 
      Event, Provider, Middleware,Contract};
 use ethers::types::{Log, Filter, Address, U256, U64, H256};
-use vibegraph_rs::event::read_contract_events;
+use vibegraph_rs::event::{read_contract_events, find_most_recent_event_blocknumber};
 
 use std::sync::Arc;
 use vibegraph_rs::db::postgres::models::events_model::EventsModel;
@@ -237,38 +237,53 @@ async fn collect_events(
 
 
  
+ 
 
-async fn start(mut app_state: AppState, app_config: AppConfig ){
+async fn initialize(
+    mut app_state: AppState, 
+    app_config: &AppConfig ,
+    chain_state: &Arc<Mutex<ChainState>>
+    
+    ) -> AppState {
  
     
-    
-  
-    let chain_state = Arc::new(Mutex::new(ChainState::default()));
-    
-    
-  
-    
-    
-    
+     
     //initialize state 
 
-    app_state.indexing_state.current_indexing_block =  app_config.contract_config.start_block.clone();
-    
+      
     let app_config_arc = Arc::new( &app_config );
     
     
     info!("Initializing state");
- 
+    
+    
+    
+    
+    let contract_address = Address::from_str( &app_config.contract_config.address ).unwrap();
+    
+    let most_recent_event_blocknumber = find_most_recent_event_blocknumber(
+        contract_address, 
+        &app_state.database
+    ).await;
+    
+    app_state.indexing_state.current_indexing_block = match most_recent_event_blocknumber {
+        Some(recent_blocknumber) => recent_blocknumber, //start from recent event .. where we left off  
+        None => app_config.contract_config.start_block.clone() //start from beginning 
+    };
+    
+   
  
     let mut initialize_loop_interval = interval(Duration::from_secs(2));
     loop {
         
         let collect_most_recent_block =  collect_blockchain_data(
              &Arc::clone(&app_config_arc),
-             Arc::clone(&chain_state)
+             
              ).await;
              
-        if let Ok(success) = collect_most_recent_block {
+        if let Ok(block_number) = collect_most_recent_block {
+            
+            chain_state.lock().await.most_recent_block_number = Some( block_number );
             break;//break the init loop 
         }
         
@@ -278,6 +293,25 @@ async fn start(mut app_state: AppState, app_config: AppConfig ){
     info!("Initialization complete");
     
 
+   
+    app_state 
+
+}
+
+ 
+   
+
+async fn start(
+    mut app_state: AppState, 
+    app_config: &AppConfig ,
+    chain_state: &Arc<Mutex<ChainState>>
+    
+    ){
+ 
+    
+     
+    let app_config_arc = Arc::new( &app_config );
+
     let mut collect_events_interval = interval(Duration::from_secs(5));
     
     let mut collect_blockchain_data_interval = interval( Duration::from_secs(40) );
@@ -285,10 +319,17 @@ async fn start(mut app_state: AppState, app_config: AppConfig ){
      loop {
         select! {
             _ = collect_events_interval.tick() => {
-                app_state = collect_events(app_state, &Arc::clone(&app_config_arc), Arc::clone(&chain_state)).await;
+                app_state = collect_events(
+                    app_state,
+                     &Arc::clone(&app_config_arc), 
+                     Arc::clone(&chain_state)).await;
             }
             _ = collect_blockchain_data_interval.tick() => {
-                collect_blockchain_data( &Arc::clone(&app_config_arc),Arc::clone(&chain_state)).await;
+                if let Ok(block_number) = collect_blockchain_data(
+                     &Arc::clone(&app_config_arc), 
+                     ).await{
+                           chain_state.lock().await.most_recent_block_number = Some( block_number );
+                     }
             }
         }
     }
@@ -301,7 +342,7 @@ async fn start(mut app_state: AppState, app_config: AppConfig ){
 
 async fn collect_blockchain_data(  
      app_config: &AppConfig, 
-     chain_state: Arc<Mutex<ChainState>>
+   //  chain_state: Arc<Mutex<ChainState>>
       ) -> Result< U64, ProviderError> {
     
      let rpc_uri = &app_config.indexing_config.rpc_uri;
@@ -311,7 +352,7 @@ async fn collect_blockchain_data(
      let block_number = provider.get_block_number().await?;
      info!("Current block number: {}", block_number);
         
-     chain_state.lock().await.most_recent_block_number = Some( block_number );
+   
     
      Ok(block_number)
 }
@@ -364,7 +405,7 @@ async fn main() {
         Database::connect().await.unwrap()
     ); 
 
-    let  app_state = AppState {
+    let mut app_state = AppState {
         database: Arc::clone(&database),
          
         indexing_state
@@ -379,6 +420,14 @@ async fn main() {
        
     };
    
+    let chain_state = Arc::new(Mutex::new(ChainState::default()));
+    
+    
+    
+    app_state = initialize(app_state, &app_config, &Arc::clone(&chain_state)).await;
 
-    start(app_state, app_config).await;
+    start(app_state, &app_config, &Arc::clone(&chain_state)).await;
+    
+    
+    
 }

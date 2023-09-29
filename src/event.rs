@@ -11,6 +11,7 @@ use ethers::prelude::{
 use ethers::types::{Log, Filter, Address, U256, U64, H256};
 
 use std::sync::Arc;
+use crate::db::postgres::models::events_model::EventsModel;
 use crate::db::postgres::postgres_db::Database;
 
 use dotenvy::dotenv;
@@ -157,3 +158,19 @@ pub fn try_identify_event_for_log(
     None 
 }
 
+
+pub async fn find_most_recent_event_blocknumber( 
+    contract_address: Address,
+    psql_db: &Database
+) -> Option<U64> {
+    
+    
+    let most_recent_event_for_contract_address = 
+        EventsModel::find_most_recent_event(contract_address,psql_db).await.ok();
+        
+        
+        //flat map 
+      most_recent_event_for_contract_address.and_then(|event|  event.block_number )
+    
+      
+}

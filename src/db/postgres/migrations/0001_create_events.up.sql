@@ -20,7 +20,10 @@ CREATE TABLE events (
     
   
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    
+     UNIQUE (transaction_hash, log_index)
 );
 
  

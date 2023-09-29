@@ -1,17 +1,16 @@
 
 
  
-use std::collections::HashMap;
 
-use ethers::abi::{RawLog, LogParam};
-use ethers::providers::{JsonRpcClient, ProviderError};
+
+
+use ethers::providers::{ProviderError};
 use tokio::sync::Mutex;
-use tokio::time::{sleep, interval, Duration};
+use tokio::time::{interval, Duration};
 
 use ethers::prelude::{
-     abigen, Abigen , 
-     Event, Provider, Middleware,Contract};
-use ethers::types::{Log, Filter, Address, U256, U64, H256};
+     Provider, Middleware};
+use ethers::types::{Address, U64};
 use vibegraph::event::{read_contract_events, find_most_recent_event_blocknumber};
 
 use std::sync::Arc;
@@ -19,12 +18,12 @@ use vibegraph::db::postgres::models::events_model::EventsModel;
 use vibegraph::db::postgres::postgres_db::Database;
 
 use dotenvy::dotenv;
-use std::env;
+
 
 use std::str::FromStr;
 
 use ethers::prelude::Http;
-use std::error::Error;
+
  use tokio::select;
 
 use log::*;
@@ -189,7 +188,7 @@ async fn collect_events(
         provider
     ).await {
         Ok( evts ) => evts,
-        Err(e) => { 
+        Err(_e) => { 
                 
            
             //we increase the failure level which will shrink the block gap to ease the load on the provider in case that was the issue
@@ -377,7 +376,7 @@ async fn main() {
      
     let abi_string = include_str!("../abi/payspec.abi.json");
     
-    let contract_config = ContractConfig {
+    let _contract_config = ContractConfig {
         address: "0xdC726D36a2f1864D592fF8d420710cd2C3D350aa".to_string(),
         abi:  serde_json::from_str( abi_string ).unwrap(),   
         start_block: 4382418.into(),

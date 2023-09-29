@@ -1,7 +1,7 @@
 
-use std::fmt;
+
  
-use ethers::utils::hex::FromHexError;
+
 use tokio_postgres::Error as PostgresError;
 use serde_json::Error as SerdeJsonError;
 

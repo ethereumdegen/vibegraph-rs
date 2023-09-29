@@ -2,7 +2,7 @@
 
 
 
-use ethers::{types::Address, utils::{to_checksum, hex::FromHexError}};
+use ethers::{types::Address, utils::{to_checksum}};
 
  
 use crate::{db::postgres::postgres_db::Database, event::ContractEvent};
@@ -135,7 +135,7 @@ pub async fn find_most_recent_event(
             
             
             let event = ContractEvent {
-                address: Address::from_str ( contract_address ) .map_err(|e|  PostgresModelError::AddressParseError )? ,
+                address: Address::from_str ( contract_address ) .map_err(|_e|  PostgresModelError::AddressParseError )? ,
                 name: row.get("name"),
                 signature: serde_json::from_str(&row.get::<_, String>("signature")).unwrap(),
                 args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),

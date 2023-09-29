@@ -1,29 +1,28 @@
 
-use std::collections::HashMap;
 
-use ethers::abi::{RawLog, LogParam};
+
+use ethers::abi::{LogParam};
 use ethers::providers::{JsonRpcClient, ProviderError};
-use tokio::time::{sleep, interval, Duration};
+
 
 use ethers::prelude::{
-     abigen, Abigen , 
-     Event, Provider, Middleware,Contract};
+     Provider, Middleware,Contract};
 use ethers::types::{Log, Filter, Address, U256, U64, H256};
 
 use std::sync::Arc;
 use crate::db::postgres::models::events_model::EventsModel;
 use crate::db::postgres::postgres_db::Database;
 
-use dotenvy::dotenv;
-use std::env;
 
-use std::str::FromStr;
 
-use ethers::prelude::Http;
-use std::error::Error;
+
+
+
+
+
   
 
-use log::*;
+
 
   
 

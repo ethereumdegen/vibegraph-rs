@@ -14,6 +14,7 @@
 
 // const databaseURL = useTestDb ?  `postgres://postgres:postgres@localhost` : `postgres://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}`
 
+use log::info;
 use tokio;
 use tokio_postgres::{NoTls, Error as PostgresError};
 
@@ -103,9 +104,9 @@ impl Database {
           // Define the connection URL.
         let conn_url = Database::get_connection_url();
 
-        println!("conn 1");
+      
 
-        println!("{}",conn_url);
+        info!("Connecting to db: {}",conn_url);
         
         let (client, connection) =
         tokio_postgres::connect(&conn_url, NoTls).await?;
@@ -115,14 +116,13 @@ impl Database {
             &format!("host={} user={} password={} dbname={}", db_host, db_user, db_password, db_name), NoTls).await?;
 */
 
-
-        println!("conn 2");
+ 
 
 
         // The connection object performs the actual communication with the database,
         // so spawn it off to run on its own.
         tokio::spawn(async move {
-            println!("starting connection to postgres db");
+            
 
             //this is a blocking call i think !!!
             if let Err(e) = connection.await {
@@ -157,16 +157,16 @@ impl Database {
  
      
 
-            println!("File name: {}", filename);
+            info!("File name: {}", filename);
            
 
             if filename.contains(".down")  {
-                println!("File contents: {}", contents);
+                info!("File contents: {}", contents);
                 migrations.down.push((filename_without_extension, contents));
             }
  
             if filename.contains(".up")  {
-                println!("File contents: {}", contents);
+                info!("File contents: {}", contents);
                 migrations.up.push((filename_without_extension, contents));
             }
  

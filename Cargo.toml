@@ -3,6 +3,8 @@ name = "vibegraph"
 version = "0.1.0"
 edition = "2021"
 default-run = "vibegraph"
+description = "Reads ethereum contract events from a lightweight RPC and caches them to a database"
+license = "MIT"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

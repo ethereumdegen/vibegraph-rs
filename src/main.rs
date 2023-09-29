@@ -19,6 +19,9 @@ use vibegraph::db::postgres::postgres_db::Database;
 
 use dotenvy::dotenv;
 
+use serde::Deserialize;
+use serde_json;
+
 
 use std::str::FromStr;
 
@@ -87,10 +90,10 @@ pub struct IndexingConfig {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ContractConfig {
-    pub address: String,
-    pub start_block: U64,
+    pub contract_address: String,
+    pub start_block: u64,
     pub name: String,  
     pub abi: ethers::abi::Abi 
 }
@@ -139,7 +142,7 @@ async fn collect_events(
     
     
          
-    let contract_address = Address::from_str(&app_config.contract_config.address)
+    let contract_address = Address::from_str(&app_config.contract_config.contract_address)
         .expect("Failed to parse contract address");
         
     let mut block_gap:u32 = match app_state.indexing_state.synced {
@@ -166,7 +169,7 @@ async fn collect_events(
     
     //if we are synced up to 4 blocks from the chain head, skip collection. 
     if start_block > most_recent_block_number - 4 {
-        info!( "Fully synced- skipping event collection" );
+        info!( "Fully synced- skipping event collection {} {}" , start_block,most_recent_block_number );
         return app_state
     }
  
@@ -253,7 +256,7 @@ async fn initialize(
     
     
     
-    let contract_address = Address::from_str( &app_config.contract_config.address ).unwrap();
+    let contract_address = Address::from_str( &app_config.contract_config.contract_address ).unwrap();
     
     let most_recent_event_blocknumber = find_most_recent_event_blocknumber(
         contract_address, 
@@ -262,7 +265,7 @@ async fn initialize(
     
     app_state.indexing_state.current_indexing_block = match most_recent_event_blocknumber {
         Some(recent_blocknumber) => recent_blocknumber, //start from recent event .. where we left off  
-        None => app_config.contract_config.start_block.clone() //start from beginning 
+        None => app_config.contract_config.start_block.clone().into() //start from beginning 
     };
     
    
@@ -353,7 +356,11 @@ async fn collect_blockchain_data(
 
 
 
+/*
 
+cargo run config/payspec_config.json
+
+*/
 
 #[tokio::main]
 async fn main() {
@@ -373,26 +380,38 @@ async fn main() {
          safe_event_count: 400,
 
     };
-     
-    let abi_string = include_str!("../abi/payspec.abi.json");
     
-    let _contract_config = ContractConfig {
-        address: "0xdC726D36a2f1864D592fF8d420710cd2C3D350aa".to_string(),
-        abi:  serde_json::from_str( abi_string ).unwrap(),   
-        start_block: 4382418.into(),
-        name: "payspec" .to_string()
+    let path = std::env::args().nth(1).expect("Please provide a file path");
+    let config_content = std::fs::read_to_string(path).expect("Could not read config");
+    
+    let contract_config: ContractConfig = serde_json::from_str(&config_content).expect("Could not parse config");
+    
+    
+     let  app_config = AppConfig {
+        
+        indexing_config,
+        contract_config 
+       
     };
+    
+    
+    
+    init( &app_config ).await;
+    
+    
+}
 
-    let abi_string_alt = include_str!("../abi/artblox.abi.json");
 
-    let alt_contract_config = ContractConfig {
-        address: "0x4590383ae832ebdfb262d750ee81361e690cfc9c".to_string(),
-        abi:  serde_json::from_str( abi_string_alt ).unwrap(),   
-        start_block: 4182418.into(),
-        name: "artblox" .to_string()
-    };
 
-    let indexing_state = IndexingState::default();
+
+ ///Used to externally start vibegraph 
+pub async fn init (
+   
+    app_config: &AppConfig  
+    
+){
+    
+     let indexing_state = IndexingState::default();
    
     //attach database 
     let database = Arc::new(
@@ -406,16 +425,8 @@ async fn main() {
        
     };
     
-     let  app_config = AppConfig {
-        
-        indexing_config,
-        contract_config: alt_contract_config,
-        
-       
-    };
-   
-    let chain_state = Arc::new(Mutex::new(ChainState::default()));
     
+    let chain_state = Arc::new(Mutex::new(ChainState::default()));
     
     
     app_state = initialize(app_state, &app_config, &Arc::clone(&chain_state)).await;

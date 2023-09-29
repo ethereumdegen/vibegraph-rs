@@ -96,11 +96,7 @@ pub struct ContractConfig {
     pub abi: ethers::abi::Abi 
 }
 
- 
-
-pub const DEFAULT_FINE_BLOCK_GAP: u32 = 20;
-pub const DEFAULT_COURSE_BLOCK_GAP: u32 = 8000;
- 
+  
   
 
 //immutable 
@@ -116,25 +112,14 @@ pub struct AppState {
     pub indexing_state: IndexingState ,
     
 }
-
  
-//should happen every 5 seconds 
-//is able to mutate app state
 async fn collect_events( 
     mut app_state:AppState ,
     app_config: &AppConfig,
     chain_state: Arc<Mutex<ChainState>>
 ) -> AppState {
 
-    /*
-        1. we need to know a start blocknumber. Use indexing config 
-
-
-    */
-
-
-    //chug through with this 
-    // read_contract_events 
+  
 
     let rpc_uri = &app_config.indexing_config.rpc_uri;
 

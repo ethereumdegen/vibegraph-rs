@@ -167,10 +167,9 @@ async fn collect_events(
     
     
     if app_state.indexing_state.provider_failure_level > 0  {
-        let block_gap_division_factor = std::cmp::max( app_state.indexing_state.provider_failure_level , 8 );
+        let block_gap_division_factor = std::cmp::min( app_state.indexing_state.provider_failure_level , 8 );
         
-        block_gap = std::cmp::min( 1 , block_gap / block_gap_division_factor );
-        
+        block_gap = std::cmp::min( 1 , block_gap / block_gap_division_factor );        
     }
     
     
@@ -178,6 +177,14 @@ async fn collect_events(
 
   
     let start_block = app_state.indexing_state.current_indexing_block;
+    
+    
+    
+    //if we are synced up to 4 blocks from the chain head, skip collection. 
+    if start_block > most_recent_block_number - 4 {
+        info!( "Fully synced- skipping event collection" );
+        return app_state
+    }
  
      info!("index starting at {}", start_block);
     
@@ -200,8 +207,11 @@ async fn collect_events(
         Err(e) => { 
                 
            
-            //we increase the failure level which will shrink the block gap 
+            //we increase the failure level which will shrink the block gap to ease the load on the provider in case that was the issue
             app_state.indexing_state.provider_failure_level += 1 ; 
+                            
+              //max failure level is 8 
+            app_state.indexing_state.provider_failure_level = std::cmp::min( app_state.indexing_state.provider_failure_level , 8 );
               
             return app_state
         }       

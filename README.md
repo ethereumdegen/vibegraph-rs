@@ -3,8 +3,11 @@
  ##  Vibegraph-rs  
    
 A microservice application that reads ethereum contract events from a lightweight RPC and caches them to a database (Postgres). 
-   
-   ___
+
+```
+cargo add vibegraph
+```   
+___
    
    Example config: 
    ``` 

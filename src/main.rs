@@ -32,6 +32,10 @@ use ethers::prelude::Http;
 use log::*;
 
   
+  pub struct Vibegraph {
+      
+  }
+  
  
 #[derive(Debug, Clone)]
 pub struct ChainState {
@@ -396,14 +400,17 @@ async fn main() {
     
     
     
-    init( &app_config ).await;
+    Vibegraph::init( &app_config ).await;
     
     
 }
 
 
 
-
+impl Vibegraph {
+    
+    
+    
  ///Used to externally start vibegraph 
 pub async fn init (
    
@@ -411,28 +418,31 @@ pub async fn init (
     
 ){
     
-     let indexing_state = IndexingState::default();
-   
-    //attach database 
-    let database = Arc::new(
-        Database::connect().await.unwrap()
-    ); 
-
-    let mut app_state = AppState {
-        database: Arc::clone(&database),
-         
-        indexing_state
-       
-    };
+        let indexing_state = IndexingState::default();
     
+        //attach database 
+        let database = Arc::new(
+            Database::connect().await.unwrap()
+        ); 
     
-    let chain_state = Arc::new(Mutex::new(ChainState::default()));
+        let mut app_state = AppState {
+            database: Arc::clone(&database),
+            
+            indexing_state
+        
+        };
+        
+        
+        let chain_state = Arc::new(Mutex::new(ChainState::default()));
+        
+        
+        app_state = initialize(app_state, &app_config, &Arc::clone(&chain_state)).await;
     
-    
-    app_state = initialize(app_state, &app_config, &Arc::clone(&chain_state)).await;
-
-    start(app_state, &app_config, &Arc::clone(&chain_state)).await;
-    
-    
+        start(app_state, &app_config, &Arc::clone(&chain_state)).await;
+        
+        
+        
+    }
     
 }
+

@@ -12,11 +12,11 @@ use ethers::prelude::{
      abigen, Abigen , 
      Event, Provider, Middleware,Contract};
 use ethers::types::{Log, Filter, Address, U256, U64, H256};
-use vibegraph_rs::event::{read_contract_events, find_most_recent_event_blocknumber};
+use vibegraph::event::{read_contract_events, find_most_recent_event_blocknumber};
 
 use std::sync::Arc;
-use vibegraph_rs::db::postgres::models::events_model::EventsModel;
-use vibegraph_rs::db::postgres::postgres_db::Database;
+use vibegraph::db::postgres::models::events_model::EventsModel;
+use vibegraph::db::postgres::postgres_db::Database;
 
 use dotenvy::dotenv;
 use std::env;

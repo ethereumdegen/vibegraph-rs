@@ -1,7 +1,7 @@
 
 use inquire::Confirm;
 
-use vibegraph_rs::db::postgres::postgres_db::Database;
+use vibegraph::db::postgres::postgres_db::Database;
 
 
 #[tokio::main]

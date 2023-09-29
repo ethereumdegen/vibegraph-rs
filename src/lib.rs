@@ -138,8 +138,8 @@ impl Default for IndexingState {
 #[derive(Debug, Clone)]
 pub struct IndexingConfig {
     pub rpc_uri: String,
-    pub index_rate: u32,
-    pub update_block_number_rate: u32,
+    pub index_rate: u64,
+    pub update_block_number_rate: u64,
     pub course_block_gap: u32,
     pub fine_block_gap: u32,
     pub safe_event_count: u32,
@@ -213,7 +213,8 @@ async fn collect_events(
     
     
     if app_state.indexing_state.provider_failure_level > 0  {
-        let block_gap_division_factor = std::cmp::min( app_state.indexing_state.provider_failure_level , 8 );
+        let block_gap_division_factor = std::cmp::min( 
+            app_state.indexing_state.provider_failure_level , 8 );
         
         block_gap = std::cmp::min( 1 , block_gap / block_gap_division_factor );        
     }
@@ -257,7 +258,8 @@ async fn collect_events(
             app_state.indexing_state.provider_failure_level += 1 ; 
                             
               //max failure level is 8 
-            app_state.indexing_state.provider_failure_level = std::cmp::min( app_state.indexing_state.provider_failure_level , 8 );
+            app_state.indexing_state.provider_failure_level = std::cmp::min( 
+                app_state.indexing_state.provider_failure_level , 8 );
               
             return app_state
         }       
@@ -367,10 +369,14 @@ async fn start(
     
      
     let app_config_arc = Arc::new( &app_config );
-
-    let mut collect_events_interval = interval(Duration::from_secs(5));
     
-    let mut collect_blockchain_data_interval = interval( Duration::from_secs(40) );
+    
+    
+    let mut collect_events_interval = interval(Duration::from_millis( 
+         app_config.indexing_config.index_rate ));
+    
+    let mut collect_blockchain_data_interval = interval( Duration::from_millis(
+         app_config.indexing_config.update_block_number_rate ) );
   
      loop {
         select! {

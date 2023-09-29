@@ -49,14 +49,14 @@ async fn main() {
     let rpc_uri =  std::env::var("RPC_URL")
         .expect("RPC_URL must be set");
 
-    //mocked for now -- move to json and serde it ? 
+    
     let indexing_config = IndexingConfig {
          rpc_uri,
-         index_rate: 4000, //ms
-         update_block_number_rate: 5000,  //ms
+         index_rate: 4_000, //ms
+         update_block_number_rate: 40_000,  //ms
          course_block_gap: 2000,
          fine_block_gap: 100,
-         safe_event_count: 400,
+         safe_event_count: 400,  //not used for now 
 
     };
     

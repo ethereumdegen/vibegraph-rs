@@ -15,10 +15,10 @@ use std::sync::Arc;
 use db::postgres::models::events_model::EventsModel;
 use db::postgres::postgres_db::Database;
 
-use dotenvy::dotenv;
+
 
 use serde::Deserialize;
-use serde_json;
+
 
 
 use std::str::FromStr;

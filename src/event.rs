@@ -34,6 +34,7 @@ pub struct ContractEvent {
     pub args: Vec< LogParam >,  
     pub address: Address,
     pub data: Vec<u8>,
+    pub chain_id: u64,
     pub transaction_hash: Option< H256 > ,
     pub block_number: Option<U64>,
     pub block_hash: Option< H256 >,
@@ -47,6 +48,7 @@ impl ContractEvent {
         
         name: String,
         signature:H256, 
+        chain_id: u64,
         args: Vec<LogParam>,
         evt:  Log,
             
@@ -59,6 +61,7 @@ impl ContractEvent {
             address: evt.address,
                // topics: evt.topics,
             data:  evt.data.0.to_vec(),
+            chain_id,
             transaction_hash: evt.transaction_hash,
             transaction_index: evt.transaction_index ,
             block_number: evt.block_number,
@@ -79,6 +82,7 @@ pub async fn read_contract_events<M:  JsonRpcClient>(
     start_block: U64,
     end_block: U64,
     provider: Provider<M>,
+    chain_id: u64,
 
  )-> Result< Vec<ContractEvent >, ProviderError>  {
 
@@ -114,7 +118,7 @@ pub async fn read_contract_events<M:  JsonRpcClient>(
              try_identify_event_for_log(evt.clone(), &contract.abi())
             .map(
                 |(name, signature, args)| 
-                ContractEvent::new(name, signature, args, evt)
+                ContractEvent::new(name, signature, chain_id, args, evt)
                 )
              
             

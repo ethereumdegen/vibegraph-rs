@@ -8,7 +8,7 @@ use tokio::time::{interval, Duration};
 
 use ethers::prelude::{
      Provider, Middleware};
-use ethers::types::{Address, U64};
+use ethers::types::{Address, U64, U256};
 use event::{read_contract_events, find_most_recent_event_blocknumber};
 
 use std::sync::Arc;
@@ -96,13 +96,15 @@ pub async fn init (
 pub struct ChainState {
 
     pub most_recent_block_number : Option<U64>,
+    pub chain_id : Option<U256> 
      
 }
   
 impl Default for ChainState {
     fn default() -> Self {
         Self{
-            most_recent_block_number: None 
+            most_recent_block_number: None,
+            chain_id: None  
         }
     }
 }
@@ -199,6 +201,18 @@ async fn collect_events(
     };
     
     
+    let chain_id = match chain_state.lock().await.chain_id.clone(){
+        
+        Some(chain_id) => chain_id,
+        None => {  
+            
+            //could not read recent block number so we cant continue 
+            return app_state
+        }
+        
+    };
+    
+    
     
          
     let contract_address = Address::from_str(&app_config.contract_config.contract_address)
@@ -248,7 +262,8 @@ async fn collect_events(
         contract_abi,
         start_block,
         end_block,
-        provider
+        provider,
+        chain_id.as_u64()
     ).await {
         Ok( evts ) => evts,
         Err(_e) => { 
@@ -339,9 +354,10 @@ async fn initialize(
              
              ).await;
              
-        if let Ok(block_number) = collect_most_recent_block {
+        if let Ok((block_number,chain_id)) = collect_most_recent_block {
             
             chain_state.lock().await.most_recent_block_number = Some( block_number );
+            chain_state.lock().await.chain_id = Some(chain_id);
             break;//break the init loop 
         }
         
@@ -387,10 +403,11 @@ async fn start(
                      Arc::clone(&chain_state)).await;
             }
             _ = collect_blockchain_data_interval.tick() => {
-                if let Ok(block_number) = collect_blockchain_data(
+                if let Ok((block_number, chain_id)) = collect_blockchain_data(
                      &Arc::clone(&app_config_arc), 
                      ).await{
                            chain_state.lock().await.most_recent_block_number = Some( block_number );
+                           chain_state.lock().await.chain_id = Some( chain_id );
                      }
             }
         }
@@ -405,7 +422,7 @@ async fn start(
 async fn collect_blockchain_data(  
      app_config: &AppConfig, 
    //  chain_state: Arc<Mutex<ChainState>>
-      ) -> Result< U64, ProviderError> {
+      ) -> Result< (U64, U256), ProviderError> {
     
      let rpc_uri = &app_config.indexing_config.rpc_uri;
 
@@ -414,9 +431,11 @@ async fn collect_blockchain_data(
      let block_number = provider.get_block_number().await?;
      info!("Current block number: {}", block_number);
         
+     let chain_id = provider.get_chainid().await?;
+        
    
     
-     Ok(block_number)
+     Ok((block_number, chain_id.into()))
 }
 
 

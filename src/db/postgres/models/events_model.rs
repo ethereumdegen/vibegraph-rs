@@ -41,6 +41,8 @@ impl EventsModel {
          
          let block_hash =  serde_json::to_string(  &event.block_hash ).unwrap() ;
          
+         let chain_id = event.chain_id as i64;
+         
          
          let block_number: &String =  &event.block_number.unwrap().low_u64().to_string();
          
@@ -60,13 +62,14 @@ impl EventsModel {
             signature,
             args,
             data,
+            chain_id,
             transaction_hash,
             block_number,
             block_hash,
             log_index,
             transaction_index            
             ) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id;
             ",
             &[
@@ -75,6 +78,7 @@ impl EventsModel {
                 &signature,
                 &args,
                 &data,
+                &chain_id,
                 &transaction_hash,
                 &block_number,
                 &block_hash,
@@ -113,6 +117,7 @@ pub async fn find_most_recent_event(
             signature,
             args,
             data,
+            chain_id,
             transaction_hash,
             block_number,
             block_hash,
@@ -140,6 +145,7 @@ pub async fn find_most_recent_event(
                 signature: serde_json::from_str(&row.get::<_, String>("signature")).unwrap(),
                 args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
                 data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
+                chain_id:  (u64::from_str(&row.get::<_, String>("chain_id")).unwrap().into()),
                 transaction_hash: serde_json::from_str(&row.get::<_, String>("transaction_hash")).unwrap(),
                 block_number: Some(u64::from_str(&row.get::<_, String>("block_number")).unwrap().into()),
                 block_hash: serde_json::from_str(&row.get::<_, String>("block_hash")).unwrap(),

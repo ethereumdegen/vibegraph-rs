@@ -18,7 +18,7 @@ CREATE TABLE events (
     log_index BIGINT ,
     transaction_index BIGINT ,    
     
-  
+    chain_id BIGINT ,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     

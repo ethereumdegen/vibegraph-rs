@@ -13,7 +13,7 @@ use event::{read_contract_events, find_most_recent_event_blocknumber};
 
 use std::sync::Arc;
 use db::postgres::models::events_model::EventsModel;
-use db::postgres::postgres_db::Database;
+use degen_sql::db::postgres::postgres_db::{Database,DatabaseCredentials};
 
 
 
@@ -56,10 +56,12 @@ pub async fn init (
 ){
     
         let indexing_state = IndexingState::default();
+
+        let database_credentials = DatabaseCredentials::from_env();
     
         //attach database 
         let database = Arc::new(
-            Database::connect().await.unwrap()
+            Database::connect(database_credentials,None).await.unwrap()
         ); 
     
         let mut app_state = AppState {

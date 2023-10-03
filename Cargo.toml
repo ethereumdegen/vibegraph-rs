@@ -1,6 +1,6 @@
 [package]
 name = "vibegraph"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 default-run = "vibegraph"
 description = "Reads ethereum contract events from a lightweight RPC and caches them to a database"
@@ -29,6 +29,7 @@ ethers = "2.0.10"
 thiserror = "1.0.49"
 include_dir = "0.7.3"
 inquire = "0.6.2"
+degen-sql = "0.1.0"
 
 
  

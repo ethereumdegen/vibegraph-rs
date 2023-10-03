@@ -11,7 +11,7 @@ use ethers::types::{Log, Filter, Address, U256, U64, H256};
 
 use std::sync::Arc;
 use crate::db::postgres::models::events_model::EventsModel;
-use crate::db::postgres::postgres_db::Database;
+use degen_sql::db::postgres::postgres_db::Database;
 
 
 

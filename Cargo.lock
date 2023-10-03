@@ -540,6 +540,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2e66c9d817f1720209181c316d28635c050fa304f9c79e47a520882661b7308"
 
 [[package]]
+name = "degen-sql"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e0c105b288e672dbde66a48b59259c800ecb9a18727e915f6d829b4c55e4a23"
+dependencies = [
+ "dotenvy",
+ "env_logger",
+ "include_dir",
+ "inquire",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-postgres",
+ "tokio-postgres-migration",
+]
+
+[[package]]
 name = "der"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3442,8 +3461,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vibegraph"
-version = "0.2.4"
+version = "0.2.6"
 dependencies = [
+ "degen-sql",
  "dotenvy",
  "env_logger",
  "ethers",

@@ -59,7 +59,7 @@ async fn main() {
 
     };
     
-    let path = std::env::args().nth(1).expect("Please provide a file path");
+    let path = std::env::args().nth(1).unwrap_or("config/payspec_config.json".into());
     let config_content = std::fs::read_to_string(path).expect("Could not read config");
     
     let contract_config: ContractConfig = serde_json::from_str(&config_content).expect("Could not parse config");

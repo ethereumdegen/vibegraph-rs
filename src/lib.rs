@@ -356,6 +356,8 @@ async fn initialize(
              
              ).await;
              
+             info!("ask api for block state");
+             
         if let Ok((block_number,chain_id)) = collect_most_recent_block {
             
             chain_state.lock().await.most_recent_block_number = Some( block_number );

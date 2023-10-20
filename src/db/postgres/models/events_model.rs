@@ -91,7 +91,7 @@ impl EventsModel {
         match insert_result {
             Ok(row) => Ok(row.get(0)),  // Successfully inserted new row and got its ID.
             Err(e) => {
-                eprintln!("Database error: {:?}", e);
+                eprintln!("Database error: Event {:?}", e);
                 
                 Err(  PostgresModelError::Postgres(e) )
                 
@@ -161,7 +161,7 @@ pub async fn find_most_recent_event(
             
         }, 
         Err(e) => {
-            eprintln!("Database error: {:?}", e);
+            eprintln!("Database error: Recent Event {:?}", e);
             Err(PostgresModelError::Postgres(e))
         }
     }

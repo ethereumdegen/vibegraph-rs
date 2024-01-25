@@ -2,7 +2,7 @@
 
 
 
-use ethers::{types::Address, utils::{to_checksum}};
+use ethers::{types::{Address, H256}, utils::{to_checksum}};
 use rust_decimal::Decimal;
 
  
@@ -13,6 +13,8 @@ use degen_sql::db::postgres::postgres_db::Database;
  
  
 use std::str::FromStr;
+use ethers::types::U256;
+   
    
 pub struct EventsModel {
     
@@ -146,11 +148,11 @@ pub async fn find_most_recent_event(
             let event = ContractEvent {
                 address: Address::from_str ( contract_address ) .map_err(|_e|  PostgresModelError::RowParseError )? ,
                 name: row.get("name"),
-                signature: serde_json::from_str(&row.get::<_, String>("signature")).unwrap(),
+                signature: H256::from_str(&row.get::<_, String>("signature")).unwrap().into(),
                 args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
                 data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
                 chain_id:   (row.get::<_, i64>("transaction_index")) as u64 ,
-                transaction_hash: serde_json::from_str(&row.get::<_, String>("transaction_hash")).unwrap(),
+                transaction_hash: H256::from_str(&row.get::<_, String>("transaction_hash")).ok(),
                 block_number: Some(u64::from_str(&row.get::<_, Decimal>("block_number").to_string()).unwrap().into()),
                 block_hash: serde_json::from_str(&row.get::<_, String>("block_hash")).unwrap(),
                 log_index: Some( (row.get::<_, i64>("log_index")).into()),

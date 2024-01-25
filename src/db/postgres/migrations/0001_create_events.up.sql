@@ -9,9 +9,9 @@ CREATE TABLE events (
     
     args TEXT , 
     data TEXT ,
-    transaction_hash VARCHAR(255) ,
+    transaction_hash VARCHAR(255) NOT NULL,
     
-    block_number VARCHAR(255) ,
+    block_number NUMERIC(98) ,
     
     block_hash VARCHAR(255)  ,
     

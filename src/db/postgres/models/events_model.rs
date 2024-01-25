@@ -3,6 +3,7 @@
 
 
 use ethers::{types::Address, utils::{to_checksum}};
+use rust_decimal::Decimal;
 
  
 use crate::{ event::ContractEvent};
@@ -32,20 +33,22 @@ impl EventsModel {
          
          let name = &event.name;
          
-         let signature =  serde_json::to_string(  &event.signature ).unwrap();
+         let signature =  format!( "{:?}", &event.signature )  ; // serde_json::to_string(  &event.signature ).unwrap();
          
          let args = serde_json::to_string( &event.args ).unwrap();
          
          let data = serde_json::to_string( &event.data ).unwrap() ; 
          
-         let transaction_hash =  serde_json::to_string( &event.transaction_hash ).unwrap();
+         let transaction_hash =  format!( "{:?}", &event.transaction_hash.ok_or_else(|| PostgresModelError::RowParseError)? )  ;
          
-         let block_hash =  serde_json::to_string(  &event.block_hash ).unwrap() ;
+         
+         let block_hash = format!( "{:?}", &event.block_hash.ok_or_else(|| PostgresModelError::RowParseError)? )  ;
          
          let chain_id = event.chain_id as i64;
          
          
-         let block_number: &String =  &event.block_number.unwrap().low_u64().to_string();
+         let block_number_string: &String =  &event.block_number.unwrap().low_u64().to_string();
+         let block_number = Decimal::from_str(block_number_string).unwrap();
          
          let log_index: i64 = event.log_index.unwrap().low_u64() as i64;
          
@@ -148,7 +151,7 @@ pub async fn find_most_recent_event(
                 data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
                 chain_id:   (row.get::<_, i64>("transaction_index")) as u64 ,
                 transaction_hash: serde_json::from_str(&row.get::<_, String>("transaction_hash")).unwrap(),
-                block_number: Some(u64::from_str(&row.get::<_, String>("block_number")).unwrap().into()),
+                block_number: Some(u64::from_str(&row.get::<_, Decimal>("block_number").to_string()).unwrap().into()),
                 block_hash: serde_json::from_str(&row.get::<_, String>("block_hash")).unwrap(),
                 log_index: Some( (row.get::<_, i64>("log_index")).into()),
                 transaction_index: Some( (row.get::<_, i64>("transaction_index")).into()),

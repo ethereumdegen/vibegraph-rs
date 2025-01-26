@@ -1,9 +1,13 @@
 use inquire::Confirm;
+use dotenvy::dotenv;
 
 use degen_sql::db::postgres::postgres_db::{Database, DatabaseCredentials};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+      dotenv().ok();
+      
     let ans = Confirm::new("Are you sure you want to roll back?")
         .with_default(false)
         .prompt();

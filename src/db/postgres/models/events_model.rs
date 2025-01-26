@@ -39,12 +39,21 @@ impl EventsModel {
          
          let args = serde_json::to_string( &event.args ).unwrap();
          
-         let data = serde_json::to_string( &event.data ).unwrap() ; 
+         let data = serde_json::to_string( &event.data ).unwrap() ;     
+
+         let transaction_hash = format!(
+            "{:?}",
+            &event.transaction_hash.ok_or_else(|| PostgresModelError::RowParseError( Some("Missing transaction hash".to_string()) ))?
+        );
+
          
-         let transaction_hash =  format!( "{:?}", &event.transaction_hash.ok_or_else(|| PostgresModelError::RowParseError)? )  ;
+         
+         let block_hash = format!(
+                "{:?}",
+                &event.block_hash.ok_or_else(|| PostgresModelError::RowParseError(Some( "Missing block hash".to_string() ) ))?
+           );
          
          
-         let block_hash = format!( "{:?}", &event.block_hash.ok_or_else(|| PostgresModelError::RowParseError)? )  ;
          
          let chain_id = event.chain_id as i64;
          
@@ -142,11 +151,16 @@ pub async fn find_most_recent_event(
         Ok(row) => {
             
             
-            let contract_address =  &row.get::<_, String>("contract_address"); 
+            //  let contract_address =  &row.get::<_, String>("contract_address"); 
             
-            
+
+            let contract_address = Address::from_str(&row.get::<_, String>("contract_address"))
+                .map_err(|e| PostgresModelError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
+
+
+
             let event = ContractEvent {
-                address: Address::from_str ( contract_address ) .map_err(|_e|  PostgresModelError::RowParseError )? ,
+                address:  contract_address  ,
                 name: row.get("name"),
                 signature: H256::from_str(&row.get::<_, String>("signature")).unwrap().into(),
                 args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),

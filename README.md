@@ -12,7 +12,7 @@ ___
    
  ###  Quickstart
    ```
-   cargo run config/payspec_config.json   
+   RUST_LOG=info cargo run config/xbtc_config.json   
    ```
    ___
    

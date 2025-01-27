@@ -1,6 +1,7 @@
 
 
 
+use log::info;
 use ethers::abi::{LogParam};
 use ethers::providers::{JsonRpcClient, ProviderError};
 
@@ -170,7 +171,8 @@ pub async fn find_most_recent_event_blocknumber(
     
     let most_recent_event_for_contract_address = 
         EventsModel::find_most_recent_event(contract_address,psql_db).await.ok();
-        
+            
+        info!("most recent event {:?}", most_recent_event_for_contract_address);
         
         //flat map 
       most_recent_event_for_contract_address.and_then(|event|  event.block_number )

@@ -37,12 +37,12 @@ pub mod event;
 
  
 
+
+pub struct Vibegraph {
   
-  pub struct Vibegraph {
-      
-  }
-  
-  
+}
+
+
 
 impl Vibegraph {
     
@@ -346,6 +346,9 @@ async fn initialize(
         None => app_config.contract_config.start_block.clone().into() //start from beginning 
     };
     
+
+    info!("Initializing current indexing block {}" , app_state.indexing_state.current_indexing_block );
+
    
  
     let mut initialize_loop_interval = interval(Duration::from_secs(2));

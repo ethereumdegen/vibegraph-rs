@@ -59,17 +59,34 @@ pub async fn init (
         let indexing_state = IndexingState::default();
 
         let database_credentials = app_config.database_credentials.clone()  ;
-    
+        
+
+         // Attach database with proper error handling
+        let database = match Database::connect(database_credentials, None).await {
+            Ok(db) => Arc::new(Mutex::new(db)),  // Wrap in Arc<Mutex<T>> properly
+            Err(e) => {
+                eprintln!("Failed to connect to database: {}", e);
+                return;
+            }
+        };
+
+        // Proper struct initialization
+        let mut app_state = AppState {
+            database: Arc::clone(&database), // Clone Arc correctly
+            indexing_state,
+        };
+
+    /*
         //attach database 
         let database = Arc::new(
             Database::connect(database_credentials,None).await.unwrap()
         ); 
     
         let mut app_state = AppState {
-            database: Arc::clone(&database),            
+            database: Arc::clone( Mutex::new( database )),            
             indexing_state        
         };
-        
+        */
         
         let chain_state = Arc::new(Mutex::new(ChainState::default()));
         
@@ -172,7 +189,7 @@ pub struct AppConfig {
 }
  
 pub struct AppState {
-    pub database: Arc<Database>,
+    pub database: Arc<Mutex<Database>>,
  
     pub indexing_state: IndexingState ,
     
@@ -296,9 +313,11 @@ async fn collect_events(
         
           info!("decoded event log {:?}", event_log);
           
-          let psql_db = &app_state.database;
+         // let psql_db = &app_state.database;
+
+          let psql_db = app_state.database.lock().await; // Lock database correctly
            
-          let inserted = EventsModel::insert_one(&event_log, psql_db).await;
+          let inserted = EventsModel::insert_one(&event_log, &*psql_db ).await;
 
           info!("inserted {:?}", inserted);
 
@@ -314,6 +333,17 @@ async fn collect_events(
           app_state.indexing_state.current_indexing_block = end_block + 1; 
     }else {
         warn!("Encountered a timeout with the database- retrying");
+
+        // Unlock database first before reconnecting
+           // drop(psql_db);
+
+            // Reconnect and update `app_state.database`
+            let mut db_lock = app_state.database.lock().await;
+            if let Err(e) = db_lock.reconnect(   app_config.database_credentials.clone() ).await {
+                eprintln!("Database reconnection failed: {:?}", e);
+            } else {
+                info!("Database reconnected successfully.");
+            }
     }
     // there there was an error, we are going to cycle this period again .
 
@@ -354,10 +384,14 @@ async fn initialize(
 
     let configured_start_block:U64 = app_config.contract_config.start_block.clone().into(); 
 
-    let most_recent_event_blocknumber = find_most_recent_event_blocknumber(
-        contract_address, 
-        &app_state.database
-    ).await;
+
+     
+
+     let most_recent_event_blocknumber = {
+        let psql_db = app_state.database.lock().await;
+        find_most_recent_event_blocknumber(contract_address, &psql_db).await
+    }; // `psql_db` is dropped here to avoid deadlock later
+
 
 
     //our indexing start block is the configured block UNLESS there is a newer more recent event - then we skip ahead 

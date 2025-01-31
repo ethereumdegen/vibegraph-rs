@@ -2,6 +2,7 @@
 
 
 
+use degen_sql::db::postgres::models::model::PostgresModelError;
 use ethers::providers::{ProviderError};
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
@@ -288,6 +289,8 @@ async fn collect_events(
     }
   
     
+
+    let mut encountered_insertion_timeout = false;
     
     for event_log in event_logs {
         
@@ -299,12 +302,22 @@ async fn collect_events(
 
           info!("inserted {:?}", inserted);
 
+          if inserted.is_err_and( |e| e == PostgresModelError::Timeout ) {
+            encountered_insertion_timeout = true ;
+          }
+
         
     }
     
+    if !encountered_insertion_timeout {
+          //progress the current indexing block
+          app_state.indexing_state.current_indexing_block = end_block + 1; 
+    }else {
+        warn!("Encountered a timeout with the database- retrying");
+    }
+    // there there was an error, we are going to cycle this period again .
 
-    //progress the current indexing block
-    app_state.indexing_state.current_indexing_block = end_block + 1; 
+  
 
 
 

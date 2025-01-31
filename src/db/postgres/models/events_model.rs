@@ -6,6 +6,7 @@ use rust_decimal::prelude::ToPrimitive;
 use log::info;
 use ethers::{types::{Address, H256}, utils::{to_checksum}};
 use rust_decimal::Decimal;
+use tokio::time::timeout;
 
  
 use crate::{ event::ContractEvent};
@@ -14,7 +15,7 @@ use degen_sql::db::postgres::models::model::PostgresModelError;
 use degen_sql::db::postgres::postgres_db::Database;
  
  
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 use ethers::types::{U256,U64};
    
    
@@ -68,7 +69,59 @@ impl EventsModel {
          let transaction_index: i64 = event.transaction_index.unwrap().low_u64() as i64;
           
          
-        
+            
+
+
+        // Set a timeout (e.g., 5 seconds)
+        let insert_result = timeout(
+            Duration::from_secs(5), // Set timeout duration
+            psql_db.query_one(
+                "
+                INSERT INTO events 
+                (
+                contract_address,
+                name,
+                signature,
+                args,
+                data,
+                chain_id,
+                transaction_hash,
+                block_number,
+                block_hash,
+                log_index,
+                transaction_index            
+                ) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id;
+                ",
+                &[
+                    &contract_address,
+                    &name,
+                    &signature,
+                    &args,
+                    &data,
+                    &chain_id,
+                    &transaction_hash,
+                    &block_number,
+                    &block_hash,
+                    &log_index,
+                    &transaction_index
+                ],
+            ),
+        ).await;
+
+        match insert_result {
+            Ok(Ok(row)) => Ok(row.get(0)), // Successfully inserted and retrieved ID
+            Ok(Err(e)) => {
+                eprintln!("Database error: {:?}", e);
+                Err(PostgresModelError::Postgres(e))
+            }
+            Err(_) => {
+                eprintln!("Database timeout occurred.");
+                Err(PostgresModelError::Timeout) // You may need to define a Timeout variant in PostgresModelError
+            }
+        }
+        /*
         
         let insert_result = psql_db.query_one(
             "
@@ -113,7 +166,7 @@ impl EventsModel {
                 
                 
             }
-        }
+        }*/
     }
      
      

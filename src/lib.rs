@@ -294,8 +294,11 @@ async fn collect_events(
           info!("decoded event log {:?}", event_log);
           
           let psql_db = &app_state.database;
-          
-          EventsModel::insert_one(&event_log, psql_db).await;
+           
+          let inserted = EventsModel::insert_one(&event_log, psql_db).await;
+
+          info!("inserted {:?}", inserted);
+
         
     }
     
@@ -335,15 +338,26 @@ async fn initialize(
     
     let contract_address = Address::from_str( &app_config.contract_config.contract_address ).unwrap();
     
+
+    let configured_start_block:U64 = app_config.contract_config.start_block.clone().into(); 
+
     let most_recent_event_blocknumber = find_most_recent_event_blocknumber(
         contract_address, 
         &app_state.database
     ).await;
+
+
+    //our indexing start block is the configured block UNLESS there is a newer more recent event - then we skip ahead 
+    let mut indexing_start_block = configured_start_block;
+
+    if let Some(most_recent_bn) = most_recent_event_blocknumber {
+        if most_recent_bn > indexing_start_block {
+            indexing_start_block = most_recent_bn;
+        }
+    }
     
-    app_state.indexing_state.current_indexing_block = match most_recent_event_blocknumber {
-        Some(recent_blocknumber) => recent_blocknumber, //start from recent event .. where we left off  
-        None => app_config.contract_config.start_block.clone().into() //start from beginning 
-    };
+    
+    app_state.indexing_state.current_indexing_block =  indexing_start_block; 
     
 
     info!("Initializing current indexing block {}" , app_state.indexing_state.current_indexing_block );

@@ -57,7 +57,7 @@ pub async fn init (
     
         let indexing_state = IndexingState::default();
 
-        let database_credentials = DatabaseCredentials::from_env();
+        let database_credentials = app_config.database_credentials.clone()  ;
     
         //attach database 
         let database = Arc::new(
@@ -65,10 +65,8 @@ pub async fn init (
         ); 
     
         let mut app_state = AppState {
-            database: Arc::clone(&database),
-            
-            indexing_state
-        
+            database: Arc::clone(&database),            
+            indexing_state        
         };
         
         
@@ -169,6 +167,7 @@ pub struct ContractConfig {
 pub struct AppConfig {
     pub contract_config: ContractConfig,
     pub indexing_config: IndexingConfig,
+    pub database_credentials: DatabaseCredentials , //if none we get them from env 
 }
  
 pub struct AppState {

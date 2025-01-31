@@ -10,22 +10,15 @@
 
 
 
+use degen_sql::db::postgres::postgres_db::DatabaseCredentials;
 use vibegraph::{IndexingConfig, ContractConfig, AppConfig, Vibegraph};
 
 
-
-
-
-
+ 
 use dotenvy::dotenv;
 
 
 use serde_json;
-
-
-
-
-
 
  
 
@@ -64,11 +57,13 @@ async fn main() {
     
     let contract_config: ContractConfig = serde_json::from_str(&config_content).expect("Could not parse config");
     
+    let database_credentials = DatabaseCredentials::from_env()  ;
     
      let  app_config = AppConfig {
         
         indexing_config,
-        contract_config 
+        contract_config,
+        database_credentials ,
        
     };
     

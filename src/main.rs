@@ -57,13 +57,18 @@ async fn main() {
     
     let contract_config: ContractConfig = serde_json::from_str(&config_content).expect("Could not parse config");
     
-    let database_credentials = DatabaseCredentials::from_env()  ;
+    //let db_conn_url = DatabaseCredentials::from_env()  ;
+
+    let db_conn_url = std::env::var("DB_CONN_URL")
+        .expect("RPC_URL must be set");
+
+
     
      let  app_config = AppConfig {
         
         indexing_config,
         contract_config,
-        database_credentials ,
+        db_conn_url ,
        
     };
     

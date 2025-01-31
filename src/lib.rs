@@ -58,7 +58,7 @@ pub async fn init (
     
         let indexing_state = IndexingState::default();
 
-        let database_credentials = app_config.database_credentials.clone()  ;
+        let database_credentials = app_config.db_conn_url.clone()  ;
         
 
          // Attach database with proper error handling
@@ -185,7 +185,9 @@ pub struct ContractConfig {
 pub struct AppConfig {
     pub contract_config: ContractConfig,
     pub indexing_config: IndexingConfig,
-    pub database_credentials: DatabaseCredentials , //if none we get them from env 
+
+    pub db_conn_url : String , 
+  //  pub database_credentials: DatabaseCredentials , //if none we get them from env 
 }
  
 pub struct AppState {
@@ -339,7 +341,7 @@ async fn collect_events(
 
             // Reconnect and update `app_state.database`
             let mut db_lock = app_state.database.lock().await;
-            if let Err(e) = db_lock.reconnect(   app_config.database_credentials.clone() ).await {
+            if let Err(e) = db_lock.reconnect(   app_config.db_conn_url.clone() ).await {
                 eprintln!("Database reconnection failed: {:?}", e);
             } else {
                 info!("Database reconnected successfully.");

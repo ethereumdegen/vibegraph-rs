@@ -151,7 +151,7 @@ pub async fn find_most_recent_event(
                 signature: H256::from_str(&row.get::<_, String>("signature")).unwrap().into(),
                 args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
                 data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
-                chain_id:   (row.get::<_, i64>("transaction_index")) as u64 ,
+                chain_id:   (row.get::<_, i64>("chain_id")) as u64 ,
                 transaction_hash: H256::from_str(&row.get::<_, String>("transaction_hash")).ok(),
                 block_number:  U64::from_str(&row.get::<_, Decimal>("block_number").to_string()).ok(),
                 block_hash: H256::from_str(&row.get::<_, String>("block_hash")).ok(),

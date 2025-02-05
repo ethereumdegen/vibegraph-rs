@@ -2,8 +2,11 @@
 
 
 
+use rust_decimal::prelude::ToPrimitive;
+use log::info;
 use ethers::{types::{Address, H256}, utils::{to_checksum}};
 use rust_decimal::Decimal;
+use tokio::time::timeout;
 
  
 use crate::{ event::ContractEvent};
@@ -12,7 +15,7 @@ use degen_sql::db::postgres::models::model::PostgresModelError;
 use degen_sql::db::postgres::postgres_db::Database;
  
  
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 use ethers::types::{U256,U64};
    
    
@@ -39,12 +42,21 @@ impl EventsModel {
          
          let args = serde_json::to_string( &event.args ).unwrap();
          
-         let data = serde_json::to_string( &event.data ).unwrap() ; 
+         let data = serde_json::to_string( &event.data ).unwrap() ;     
+
+         let transaction_hash = format!(
+            "{:?}",
+            &event.transaction_hash.ok_or_else(|| PostgresModelError::RowParseError( Some("Missing transaction hash".to_string()) ))?
+        );
+
          
-         let transaction_hash =  format!( "{:?}", &event.transaction_hash.ok_or_else(|| PostgresModelError::RowParseError)? )  ;
+         
+         let block_hash = format!(
+                "{:?}",
+                &event.block_hash.ok_or_else(|| PostgresModelError::RowParseError(Some( "Missing block hash".to_string() ) ))?
+           );
          
          
-         let block_hash = format!( "{:?}", &event.block_hash.ok_or_else(|| PostgresModelError::RowParseError)? )  ;
          
          let chain_id = event.chain_id as i64;
          
@@ -57,7 +69,59 @@ impl EventsModel {
          let transaction_index: i64 = event.transaction_index.unwrap().low_u64() as i64;
           
          
-        
+            
+
+
+        // Set a timeout (e.g., 5 seconds)
+        let insert_result = timeout(
+            Duration::from_secs(5), // Set timeout duration
+            psql_db.query_one(
+                "
+                INSERT INTO events 
+                (
+                contract_address,
+                name,
+                signature,
+                args,
+                data,
+                chain_id,
+                transaction_hash,
+                block_number,
+                block_hash,
+                log_index,
+                transaction_index            
+                ) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id;
+                ",
+                &[
+                    &contract_address,
+                    &name,
+                    &signature,
+                    &args,
+                    &data,
+                    &chain_id,
+                    &transaction_hash,
+                    &block_number,
+                    &block_hash,
+                    &log_index,
+                    &transaction_index
+                ],
+            ),
+        ).await;
+
+        match insert_result {
+            Ok(Ok(row)) => Ok(row.get(0)), // Successfully inserted and retrieved ID
+            Ok(Err(e)) => {
+                eprintln!("Database error: {:?}", e);
+                Err(PostgresModelError::Postgres(e))
+            }
+            Err(_) => {
+                eprintln!("Database timeout occurred.");
+                Err(PostgresModelError::Timeout) // You may need to define a Timeout variant in PostgresModelError
+            }
+        }
+        /*
         
         let insert_result = psql_db.query_one(
             "
@@ -102,7 +166,7 @@ impl EventsModel {
                 
                 
             }
-        }
+        }*/
     }
      
      
@@ -142,18 +206,24 @@ pub async fn find_most_recent_event(
         Ok(row) => {
             
             
-            let contract_address =  &row.get::<_, String>("contract_address"); 
+            //  let contract_address =  &row.get::<_, String>("contract_address"); 
             
-            
+
+            let contract_address = Address::from_str(&row.get::<_, String>("contract_address"))
+                .map_err(|e| PostgresModelError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
+
+                // info!( "block num {:?}" , decimal_to_u64(  &row.get::<_, Decimal>("block_number") )  );
+                //   info!( "block num {}" ,U64::from_str(&row.get::<_, Decimal>("block_number").to_string()).unwrap() );
+
             let event = ContractEvent {
-                address: Address::from_str ( contract_address ) .map_err(|_e|  PostgresModelError::RowParseError )? ,
+                address:  contract_address  ,
                 name: row.get("name"),
                 signature: H256::from_str(&row.get::<_, String>("signature")).unwrap().into(),
                 args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
                 data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
                 chain_id:   (row.get::<_, i64>("chain_id")) as u64 ,
                 transaction_hash: H256::from_str(&row.get::<_, String>("transaction_hash")).ok(),
-                block_number:  U64::from_str(&row.get::<_, Decimal>("block_number").to_string()).ok(),
+                block_number:   decimal_to_u64(  &row.get::<_, Decimal>("block_number") ) ,
                 block_hash: H256::from_str(&row.get::<_, String>("block_hash")).ok(),
                 log_index: Some( (row.get::<_, i64>("log_index")).into()),
                 transaction_index: Some( (row.get::<_, i64>("transaction_index")).into()),
@@ -174,4 +244,25 @@ pub async fn find_most_recent_event(
      
      
     
+}
+
+
+fn decimal_to_u64 (input: &Decimal) -> Option< U64  > {
+
+
+      // Scale the decimal value
+    let scaled_decimal = input  ;
+
+    // Ensure the value can be represented as a u64
+    let u128_value = scaled_decimal
+        .to_u128()
+        .expect("Failed to convert Decimal to u64");
+
+     // Ensure it fits in a u64
+    if u128_value > u64::MAX as u128 {
+      //  panic!("Value exceeds u64 range");
+      return None; 
+    }
+
+    Some(  U64::from(u128_value as u64) )
 }

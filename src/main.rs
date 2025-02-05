@@ -10,22 +10,15 @@
 
 
 
+use degen_sql::db::postgres::postgres_db::DatabaseCredentials;
 use vibegraph::{IndexingConfig, ContractConfig, AppConfig, Vibegraph};
 
 
-
-
-
-
+ 
 use dotenvy::dotenv;
 
 
 use serde_json;
-
-
-
-
-
 
  
 
@@ -64,11 +57,18 @@ async fn main() {
     
     let contract_config: ContractConfig = serde_json::from_str(&config_content).expect("Could not parse config");
     
+    //let db_conn_url = DatabaseCredentials::from_env()  ;
+
+    let db_conn_url = std::env::var("DB_CONN_URL")
+        .expect("RPC_URL must be set");
+
+
     
      let  app_config = AppConfig {
         
         indexing_config,
-        contract_config 
+        contract_config,
+        db_conn_url ,
        
     };
     

@@ -2,6 +2,7 @@
 
 
 
+use degen_sql::db::postgres::models::model::PostgresModelError;
 use ethers::providers::{ProviderError};
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
@@ -37,12 +38,12 @@ pub mod event;
 
  
 
+
+pub struct Vibegraph {
   
-  pub struct Vibegraph {
-      
-  }
-  
-  
+}
+
+
 
 impl Vibegraph {
     
@@ -57,20 +58,35 @@ pub async fn init (
     
         let indexing_state = IndexingState::default();
 
-        let database_credentials = DatabaseCredentials::from_env();
-    
+        let database_credentials = app_config.db_conn_url.clone()  ;
+        
+
+         // Attach database with proper error handling
+        let database = match Database::connect(database_credentials, None).await {
+            Ok(db) => Arc::new(Mutex::new(db)),  // Wrap in Arc<Mutex<T>> properly
+            Err(e) => {
+                eprintln!("Failed to connect to database: {}", e);
+                return;
+            }
+        };
+
+        // Proper struct initialization
+        let mut app_state = AppState {
+            database: Arc::clone(&database), // Clone Arc correctly
+            indexing_state,
+        };
+
+    /*
         //attach database 
         let database = Arc::new(
             Database::connect(database_credentials,None).await.unwrap()
         ); 
     
         let mut app_state = AppState {
-            database: Arc::clone(&database),
-            
-            indexing_state
-        
+            database: Arc::clone( Mutex::new( database )),            
+            indexing_state        
         };
-        
+        */
         
         let chain_state = Arc::new(Mutex::new(ChainState::default()));
         
@@ -169,10 +185,13 @@ pub struct ContractConfig {
 pub struct AppConfig {
     pub contract_config: ContractConfig,
     pub indexing_config: IndexingConfig,
+
+    pub db_conn_url : String , 
+  //  pub database_credentials: DatabaseCredentials , //if none we get them from env 
 }
  
 pub struct AppState {
-    pub database: Arc<Database>,
+    pub database: Arc<Mutex<Database>>,
  
     pub indexing_state: IndexingState ,
     
@@ -289,20 +308,48 @@ async fn collect_events(
     }
   
     
+
+    let mut encountered_insertion_timeout = false;
     
     for event_log in event_logs {
         
           info!("decoded event log {:?}", event_log);
           
-          let psql_db = &app_state.database;
-          
-          EventsModel::insert_one(&event_log, psql_db).await;
+         // let psql_db = &app_state.database;
+
+          let psql_db = app_state.database.lock().await; // Lock database correctly
+           
+          let inserted = EventsModel::insert_one(&event_log, &*psql_db ).await;
+
+          info!("inserted {:?}", inserted);
+
+          if inserted.is_err_and( |e| e == PostgresModelError::Timeout ) {
+            encountered_insertion_timeout = true ;
+          }
+
         
     }
     
+    if !encountered_insertion_timeout {
+          //progress the current indexing block
+          app_state.indexing_state.current_indexing_block = end_block + 1; 
+    }else {
+        warn!("Encountered a timeout with the database- retrying");
 
-    //progress the current indexing block
-    app_state.indexing_state.current_indexing_block = end_block + 1; 
+        // Unlock database first before reconnecting
+           // drop(psql_db);
+
+            // Reconnect and update `app_state.database`
+            let mut db_lock = app_state.database.lock().await;
+            if let Err(e) = db_lock.reconnect(   app_config.db_conn_url.clone() ).await {
+                eprintln!("Database reconnection failed: {:?}", e);
+            } else {
+                info!("Database reconnected successfully.");
+            }
+    }
+    // there there was an error, we are going to cycle this period again .
+
+  
 
 
 
@@ -336,16 +383,34 @@ async fn initialize(
     
     let contract_address = Address::from_str( &app_config.contract_config.contract_address ).unwrap();
     
-    let most_recent_event_blocknumber = find_most_recent_event_blocknumber(
-        contract_address, 
-        &app_state.database
-    ).await;
+
+    let configured_start_block:U64 = app_config.contract_config.start_block.clone().into(); 
+
+
+     
+
+     let most_recent_event_blocknumber = {
+        let psql_db = app_state.database.lock().await;
+        find_most_recent_event_blocknumber(contract_address, &psql_db).await
+    }; // `psql_db` is dropped here to avoid deadlock later
+
+
+
+    //our indexing start block is the configured block UNLESS there is a newer more recent event - then we skip ahead 
+    let mut indexing_start_block = configured_start_block;
+
+    if let Some(most_recent_bn) = most_recent_event_blocknumber {
+        if most_recent_bn > indexing_start_block {
+            indexing_start_block = most_recent_bn;
+        }
+    }
     
-    app_state.indexing_state.current_indexing_block = match most_recent_event_blocknumber {
-        Some(recent_blocknumber) => recent_blocknumber, //start from recent event .. where we left off  
-        None => app_config.contract_config.start_block.clone().into() //start from beginning 
-    };
     
+    app_state.indexing_state.current_indexing_block =  indexing_start_block; 
+    
+
+    info!("Initializing current indexing block {}" , app_state.indexing_state.current_indexing_block );
+
    
  
     let mut initialize_loop_interval = interval(Duration::from_secs(2));

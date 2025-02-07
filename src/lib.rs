@@ -309,7 +309,6 @@ async fn collect_events(
   
     
 
-    let mut encountered_insertion_timeout = false;
     
     for event_log in event_logs {
         
@@ -317,23 +316,23 @@ async fn collect_events(
           
          // let psql_db = &app_state.database;
 
-          let psql_db = app_state.database.lock().await; // Lock database correctly
+          let mut psql_db = app_state.database.lock().await; // Lock database correctly
            
-          let inserted = EventsModel::insert_one(&event_log, &*psql_db ).await;
+          let inserted = EventsModel::insert_one(&event_log, &mut *psql_db ).await;
 
           info!("inserted {:?}", inserted);
 
-          if inserted.is_err_and( |e| e == PostgresModelError::Timeout ) {
-            encountered_insertion_timeout = true ;
-          }
+        //  if inserted.is_err_and( |e| e == PostgresModelError::Timeout ) {
+         //   encountered_insertion_timeout = true ;
+         // }
 
         
     }
     
-    if !encountered_insertion_timeout {
+   // if !encountered_insertion_timeout {
           //progress the current indexing block
           app_state.indexing_state.current_indexing_block = end_block + 1; 
-    }else {
+  /*  }else {
         warn!("Encountered a timeout with the database- retrying");
 
         // Unlock database first before reconnecting
@@ -341,12 +340,12 @@ async fn collect_events(
 
             // Reconnect and update `app_state.database`
             let mut db_lock = app_state.database.lock().await;
-            if let Err(e) = db_lock.reconnect(   app_config.db_conn_url.clone() ).await {
+            if let Err(e) = db_lock.reconnect(     ).await {
                 eprintln!("Database reconnection failed: {:?}", e);
             } else {
                 info!("Database reconnected successfully.");
             }
-    }
+    }*/
     // there there was an error, we are going to cycle this period again .
 
   
@@ -390,8 +389,8 @@ async fn initialize(
      
 
      let most_recent_event_blocknumber = {
-        let psql_db = app_state.database.lock().await;
-        find_most_recent_event_blocknumber(contract_address, &psql_db).await
+        let mut psql_db = app_state.database.lock().await;
+        find_most_recent_event_blocknumber(contract_address, &mut psql_db).await
     }; // `psql_db` is dropped here to avoid deadlock later
 
 

@@ -30,7 +30,7 @@ impl EventsModel {
     pub async fn insert_one(
     event: &ContractEvent  ,
   
-    psql_db: &Database,
+    psql_db: &mut Database,
 ) -> Result<i32, PostgresModelError> {
        
          
@@ -73,9 +73,8 @@ impl EventsModel {
 
 
         // Set a timeout (e.g., 5 seconds)
-        let insert_result = timeout(
-            Duration::from_secs(5), // Set timeout duration
-            psql_db.query_one(
+        let insert_result =  
+            psql_db.query_one_with_reconnect(
                 "
                 INSERT INTO events 
                 (
@@ -107,79 +106,25 @@ impl EventsModel {
                     &log_index,
                     &transaction_index
                 ],
-            ),
+                3
+            
         ).await;
 
-        match insert_result {
-            Ok(Ok(row)) => Ok(row.get(0)), // Successfully inserted and retrieved ID
-            Ok(Err(e)) => {
-                eprintln!("Database error: {:?}", e);
-                Err(PostgresModelError::Postgres(e))
-            }
-            Err(_) => {
-                eprintln!("Database timeout occurred.");
-                Err(PostgresModelError::Timeout) // You may need to define a Timeout variant in PostgresModelError
-            }
-        }
-        /*
-        
-        let insert_result = psql_db.query_one(
-            "
-            INSERT INTO events 
-            (
-            contract_address,
-            name,
-            signature,
-            args,
-            data,
-            chain_id,
-            transaction_hash,
-            block_number,
-            block_hash,
-            log_index,
-            transaction_index            
-            ) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING id;
-            ",
-            &[
-                &contract_address, 
-                &name,
-                &signature,
-                &args,
-                &data,
-                &chain_id,
-                &transaction_hash,
-                &block_number,
-                &block_hash,
-                &log_index  ,
-                &transaction_index                 
-                ],
-        ).await;
-    
-        match insert_result {
-            Ok(row) => Ok(row.get(0)),  // Successfully inserted new row and got its ID.
-            Err(e) => {
-                eprintln!("Database error: Event {:?}", e);
-                
-                Err(  PostgresModelError::Postgres(e) )
-                
-                
-            }
-        }*/
+          insert_result.map(|r| r.get(0)) 
+         
     }
      
      
 pub async fn find_most_recent_event(
     contract_address: Address,
-    psql_db: &Database,
+    psql_db: &mut Database,
 ) -> Result< ContractEvent, PostgresModelError> {
     
     
     let parsed_contract_address = to_checksum(&contract_address, None).to_string();
          
     
-    let row = psql_db.query_one(
+    let row = psql_db.query_one_with_reconnect(
         "
         SELECT 
             contract_address,
@@ -200,6 +145,7 @@ pub async fn find_most_recent_event(
         LIMIT 1;
         ",
         &[&parsed_contract_address],
+        3
     ).await;
 
     match row {
@@ -237,7 +183,7 @@ pub async fn find_most_recent_event(
         }, 
         Err(e) => {
             eprintln!("Database error: Recent Event {:?}", e);
-            Err(PostgresModelError::Postgres(e))
+            Err( e) 
         }
     }
 }

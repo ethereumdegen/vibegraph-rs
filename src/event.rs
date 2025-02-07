@@ -194,7 +194,7 @@ pub fn try_identify_event_for_log(
 
 pub async fn find_most_recent_event_blocknumber( 
     contract_address: Address,
-    psql_db: &Database
+    psql_db: &mut Database
 ) -> Option<U64> {
     
     

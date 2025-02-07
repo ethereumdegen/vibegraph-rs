@@ -152,30 +152,9 @@ pub async fn find_most_recent_event(
         Ok(row) => {
             
             
-            //  let contract_address =  &row.get::<_, String>("contract_address"); 
             
-
-            let contract_address = Address::from_str(&row.get::<_, String>("contract_address"))
-                .map_err(|e| PostgresModelError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
-
-                // info!( "block num {:?}" , decimal_to_u64(  &row.get::<_, Decimal>("block_number") )  );
-                //   info!( "block num {}" ,U64::from_str(&row.get::<_, Decimal>("block_number").to_string()).unwrap() );
-
-            let event = ContractEvent {
-                address:  contract_address  ,
-                name: row.get("name"),
-                signature: H256::from_str(&row.get::<_, String>("signature")).unwrap().into(),
-                args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
-                data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
-                chain_id:   (row.get::<_, i64>("chain_id")) as u64 ,
-                transaction_hash: H256::from_str(&row.get::<_, String>("transaction_hash")).ok(),
-                block_number:   decimal_to_u64(  &row.get::<_, Decimal>("block_number") ) ,
-                block_hash: H256::from_str(&row.get::<_, String>("block_hash")).ok(),
-                log_index: Some( (row.get::<_, i64>("log_index")).into()),
-                transaction_index: Some( (row.get::<_, i64>("transaction_index")).into()),
-                // ... any other fields you might have in the ContractEvent struct
-            };
-            
+ 
+            let event = ContractEvent ::from_row(&row) ?;
             
             Ok( event ) 
             

@@ -1,6 +1,10 @@
 
 
 
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::str::FromStr;
+use crate::PostgresModelError;
 use log::info;
 use ethers::abi::{LogParam};
 use ethers::providers::{JsonRpcClient, ProviderError};
@@ -9,6 +13,7 @@ use ethers::providers::{JsonRpcClient, ProviderError};
 use ethers::prelude::{
      Provider, Middleware,Contract};
 use ethers::types::{Log, Filter, Address, U256, U64, H256};
+use tokio_postgres::Row;
 
 use std::sync::Arc;
 use crate::db::postgres::models::events_model::EventsModel;
@@ -71,6 +76,30 @@ impl ContractEvent {
             
         }
     } 
+
+    pub fn from_row(row: &Row) -> Result<Self, PostgresModelError>{
+
+          let contract_address = Address::from_str(&row.get::<_, String>("contract_address"))
+                .map_err(|e| PostgresModelError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
+
+
+
+        Ok( Self{ 
+                address:  contract_address  ,
+                name: row.get("name"),
+                signature: H256::from_str(&row.get::<_, String>("signature")).unwrap().into(),
+                args: serde_json::from_str(&row.get::<_, String>("args")).unwrap(),
+                data: serde_json::from_str(&row.get::<_, String>("data")).unwrap(),
+                chain_id:   (row.get::<_, i64>("chain_id")) as u64 ,
+                transaction_hash: H256::from_str(&row.get::<_, String>("transaction_hash")).ok(),
+                block_number:   decimal_to_u64(  &row.get::<_, Decimal>("block_number") ) ,
+                block_hash: H256::from_str(&row.get::<_, String>("block_hash")).ok(),
+                log_index: Some( (row.get::<_, i64>("log_index")).into()),
+                transaction_index: Some( (row.get::<_, i64>("transaction_index")).into()),
+            })
+
+
+    }
     
 }
  
@@ -178,4 +207,24 @@ pub async fn find_most_recent_event_blocknumber(
       most_recent_event_for_contract_address.and_then(|event|  event.block_number )
     
       
+}
+
+fn decimal_to_u64 (input: &Decimal) -> Option< U64  > {
+
+
+      // Scale the decimal value
+    let scaled_decimal = input  ;
+
+    // Ensure the value can be represented as a u64
+    let u128_value = scaled_decimal
+        .to_u128()
+        .expect("Failed to convert Decimal to u64");
+
+     // Ensure it fits in a u64
+    if u128_value > u64::MAX as u128 {
+      //  panic!("Value exceeds u64 range");
+      return None; 
+    }
+
+    Some(  U64::from(u128_value as u64) )
 }

@@ -2,6 +2,7 @@
 
 
 
+use std::collections::HashMap;
 use degen_sql::db::postgres::models::model::PostgresModelError;
 use ethers::providers::{ProviderError};
 use tokio::sync::Mutex;
@@ -29,6 +30,17 @@ use ethers::prelude::Http;
  use tokio::select;
 
 use log::*;
+
+
+
+
+/*
+
+
+ 
+
+
+*/
  
 
 pub mod db;
@@ -157,7 +169,7 @@ impl Default for IndexingState {
 
 #[derive(Debug, Clone)]
 pub struct IndexingConfig {
-    pub rpc_uri: String,
+  //  pub rpc_uri: String,
     pub index_rate: u64,
     pub update_block_number_rate: u64,
     pub course_block_gap: u32,
@@ -172,9 +184,10 @@ pub struct IndexingConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ContractConfig {
     pub contract_address: String,
+    pub chain_id: u64 , 
     pub start_block: u64,
     pub name: String,  
-    pub abi: ethers::abi::Abi 
+  //  pub abi: ethers::abi::Abi 
 }
 
   
@@ -183,8 +196,10 @@ pub struct ContractConfig {
 //immutable 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    pub contract_config: ContractConfig,
+    pub contract_config_map: HashMap<String, ContractConfig >,
+    pub rpc_uri_map: HashMap<u64, String > ,
     pub indexing_config: IndexingConfig,
+    pub contract_abi_map: HashMap<String, ethers::abi::Abi>,
 
     pub db_conn_url : String , 
   //  pub database_credentials: DatabaseCredentials , //if none we get them from env 
@@ -203,9 +218,24 @@ async fn collect_events(
     chain_state: Arc<Mutex<ChainState>>
 ) -> AppState {
 
-  
+    
+    let current_index_contract_name = &app_config.indexing_config.current_index_contract_name ;
+    
 
-    let rpc_uri = &app_config.indexing_config.rpc_uri;
+    let Some(current_contract_config) =  app_config.contract_config_map.get(current_index_contract_name) else {
+         warn!("contract config missing ");
+         return app_state
+
+    } ;
+
+
+    let chain_id = current_contract_config.chain_id;
+
+
+    let Some(rpc_uri) = app_config.rpc_uri_map.get( &chain_id ) else {
+        warn!("no rpc uri");
+        return app_state; 
+    };
 
     let provider = Provider::<Http>::try_from(rpc_uri).unwrap( );
     
@@ -236,7 +266,7 @@ async fn collect_events(
     
     
          
-    let contract_address = Address::from_str(&app_config.contract_config.contract_address)
+    let contract_address = Address::from_str(&current_contract_config.contract_address)
         .expect("Failed to parse contract address");
         
     let mut block_gap:u32 = match app_state.indexing_state.synced {
@@ -255,7 +285,10 @@ async fn collect_events(
     }
     
     
-    let contract_abi: &ethers::abi::Abi  = &app_config.contract_config.abi; 
+    let Some(contract_abi )  = &app_config.contract_abi_map.get(current_index_contract_name) else {
+        warn!("no abi ");
+        return app_state ;
+    }; 
 
   
     let start_block = app_state.indexing_state.current_indexing_block;

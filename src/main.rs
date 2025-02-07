@@ -10,7 +10,9 @@
 
 
 
+use std::collections::HashMap;
 use degen_sql::db::postgres::postgres_db::DatabaseCredentials;
+use ethers::core::k256::pkcs8::der;
 use vibegraph::{IndexingConfig, ContractConfig, AppConfig, Vibegraph};
 
 
@@ -43,7 +45,7 @@ async fn main() {
 
     
     let indexing_config = IndexingConfig {
-         rpc_uri,
+        // rpc_uri,
          index_rate: 4_000, //ms
          update_block_number_rate: 40_000,  //ms
          course_block_gap: 2000,
@@ -52,22 +54,33 @@ async fn main() {
 
     };
     
-    let path = std::env::args().nth(1).unwrap_or("config/payspec_config.json".into());
-    let config_content = std::fs::read_to_string(path).expect("Could not read config");
-    
-    let contract_config: ContractConfig = serde_json::from_str(&config_content).expect("Could not parse config");
-    
-    //let db_conn_url = DatabaseCredentials::from_env()  ;
+    let config_folder_path =  "config/".into() ;
+    let abi_folder_path =  "abi/".into() ;
+
+
+ 
 
     let db_conn_url = std::env::var("DB_CONN_URL")
         .expect("RPC_URL must be set");
 
 
+
+
+     
+    let (contract_config_map, chain_ids) = load_contract_configs(&config_folder_path);
+    let contract_abi_map = load_contract_abis(&abi_folder_path);
+    let rpc_uri_map = map_rpc_uris(&chain_ids);
+
+
+ 
+
     
      let  app_config = AppConfig {
         
         indexing_config,
-        contract_config,
+        contract_abi_map,
+        rpc_uri_map,
+        contract_config_map,
         db_conn_url ,
        
     };
@@ -80,3 +93,55 @@ async fn main() {
 }
 
  
+
+
+
+pub fn load_contract_configs(config_folder_path: &str) -> (HashMap<String, ContractConfig>, Vec<u64>) {
+    let mut contract_config_map = HashMap::new();
+    let mut chain_ids = Vec::new();
+
+    let paths = fs::read_dir(config_folder_path).expect("Failed to read config directory");
+    for path in paths {
+        let path = path.expect("Failed to read path in directory").path();
+        if path.is_file() {
+            let config_content = fs::read_to_string(&path).expect("Could not read config file");
+            let contract_config: ContractConfig = from_str(&config_content).expect("Could not parse config");
+            chain_ids.push(contract_config.chain_id);
+            contract_config_map.insert(path.to_str().unwrap().to_string(), contract_config);
+        }
+    }
+
+    (contract_config_map, chain_ids)
+}
+
+pub fn load_contract_abis(config_folder_path: &str) -> HashMap<String, Abi> {
+    let mut contract_abi_map = HashMap::new();
+
+    let paths = fs::read_dir(config_folder_path).expect("Failed to read ABI directory");
+    for path in paths {
+        let path = path.expect("Failed to read path in directory").path();
+        if path.is_file() {
+            let abi_content = fs::read_to_string(&path).expect("Could not read ABI file");
+            let contract_abi: Abi = from_str(&abi_content).expect("Could not parse ABI");
+            contract_abi_map.insert(path.to_str().unwrap().to_string(), contract_abi);
+        }
+    }
+
+    contract_abi_map
+}
+
+pub fn load_rpc_uris(chain_ids: &[u64]) -> HashMap<u64, String> {
+    let mut rpc_uri_map = HashMap::new();
+
+    for &chain_id in chain_ids {
+        let rpc_network = RpcNetwork::from_chain_id(chain_id);
+        if let Some(network) = rpc_network {
+            let rpc_url_env_var = network.get_rpc_url_env_var();
+            if let Ok(rpc_url) = env::var(rpc_url_env_var) {
+                rpc_uri_map.insert(chain_id, rpc_url);
+            }
+        }
+    }
+
+    rpc_uri_map
+}

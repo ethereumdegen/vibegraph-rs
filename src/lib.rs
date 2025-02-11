@@ -141,7 +141,7 @@ impl Default for ChainState {
  
    
 
-
+// moving this to db ! 
 #[derive(Debug, Clone)]
 pub struct IndexingState {
 
@@ -180,7 +180,7 @@ pub struct IndexingConfig {
 }
 
 
-
+// moving this to db !! 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ContractConfig {
     pub contract_address: String,

@@ -623,7 +623,7 @@ async fn start(
 
                          let latest_block_number =  block_number.as_u64()  as i64 ;
                          let chain_id = chain_id.as_u64()  as i64; 
-                         let _ = NetworkData::insert( chain_id, latest_block_number,  &mut psql_db ).await;
+                         let _ = NetworkData::insert_or_update( chain_id, latest_block_number,  &mut psql_db ).await;
                          //store in database 
 
                         

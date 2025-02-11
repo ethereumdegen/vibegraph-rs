@@ -30,6 +30,31 @@ impl NetworkData {
         })
     }
 
+
+       pub async fn insert_or_update(
+        chain_id: i64,
+        latest_block_number: i64,
+        psql_db: &mut Database,
+    ) -> Result<Self, PostgresModelError> {
+        // SQL statement that handles both insert and update
+        let statement = "INSERT INTO network_data (chain_id, latest_block_number) \
+                         VALUES ($1, $2) \
+                         ON CONFLICT (chain_id) \
+                         DO UPDATE SET latest_block_number = EXCLUDED.latest_block_number \
+                         RETURNING id";
+
+        // Execute the query
+        let row = psql_db.query_one_with_reconnect(&statement, &[&chain_id, &latest_block_number]).await?;
+
+        // Return the updated/inserted row
+        Ok(Self {
+            id: row.get(0),
+            chain_id,
+            latest_block_number,
+        })
+    }
+
+
     pub async fn find_one_by_chain_id(
         
         chain_id: i64,

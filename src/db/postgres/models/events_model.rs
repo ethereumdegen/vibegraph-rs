@@ -105,8 +105,7 @@ impl EventsModel {
                     &block_hash,
                     &log_index,
                     &transaction_index
-                ],
-                3
+                ] 
             
         ).await;
 
@@ -144,8 +143,7 @@ pub async fn find_most_recent_event(
         ORDER BY created_at DESC
         LIMIT 1;
         ",
-        &[&parsed_contract_address],
-        3
+        &[&parsed_contract_address] 
     ).await;
 
     match row {

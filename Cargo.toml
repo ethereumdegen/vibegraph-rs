@@ -30,7 +30,7 @@ thiserror = "1.0.49"
 include_dir = "0.7.3"
 inquire = "0.6.2"
 
-  degen-sql = "0.1.12" 
+  degen-sql = "0.1.13" 
  #degen-sql={path="../degen-sql"}
 
 rust_decimal = { version = "1.33.1", features = ["db-tokio-postgres"] }  

@@ -612,9 +612,9 @@ checksum = "0e60eed09d8c01d3cee5b7d30acb059b76614c918fa0f992e0dd6eeb10daad6f"
 
 [[package]]
 name = "degen-sql"
-version = "0.1.12"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3c70389f817a890938a3fac1d5394656bbb9161c4ca2d7b8416c5c6704e7abc"
+checksum = "c326dba38f7676a3d2f31ff445d122529360a1d5d6607b2d64e0a78b47945454"
 dependencies = [
  "dotenvy",
  "env_logger",

@@ -64,10 +64,15 @@ async fn main() {
         .expect("RPC_URL must be set");
 
 
+    let networks = vec![
+    RpcNetwork::Mainnet,
+     RpcNetwork::Base,
+     RpcNetwork::Arbitrum,
+     RpcNetwork::Polygon, 
+    ];
 
-
-     
-    let (contract_config_map, chain_ids) = load_contract_configs(&config_folder_path);
+    let chain_ids = networks.map(|n| n.get_chain_id()).collect();
+  //  let (contract_config_map, chain_ids) = load_contract_configs(&config_folder_path);
     let contract_abi_map = load_contract_abis(&abi_folder_path);
     let rpc_uri_map = map_rpc_uris(&chain_ids);
 
@@ -80,7 +85,7 @@ async fn main() {
         indexing_config,
         contract_abi_map,
         rpc_uri_map,
-        contract_config_map,
+    //    contract_config_map,
         db_conn_url ,
        
     };

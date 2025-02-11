@@ -145,8 +145,10 @@ impl Default for ChainState {
 #[derive(Debug, Clone)]
 pub struct IndexingState {
 
-    pub current_indexing_block : U64,
-    pub synced: bool,
+   // pub current_indexing_block : U64,
+  //  pub synced: bool,
+
+   pub current_indexer_id: Option<U64>,
     
     pub provider_failure_level: u32
 
@@ -157,8 +159,11 @@ impl Default for IndexingState {
 
     fn default() -> Self {
         Self {
-            current_indexing_block: 0.into(),
-            synced: false,
+          //  current_indexing_block: 0.into(),
+          //  synced: false,
+
+            current_indexer_id : None, 
+
             provider_failure_level: 0
         }
 
@@ -196,7 +201,9 @@ pub struct ContractConfig {
 //immutable 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    pub contract_config_map: HashMap<String, ContractConfig >,
+ //   pub contract_config_map: HashMap<String, ContractConfig >,  //store in db 
+
+
     pub rpc_uri_map: HashMap<u64, String > ,
     pub indexing_config: IndexingConfig,
     pub contract_abi_map: HashMap<String, ethers::abi::Abi>,

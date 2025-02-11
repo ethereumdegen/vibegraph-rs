@@ -10,16 +10,16 @@ CREATE TABLE event_indexers (
 
     start_block BIGINT NOT NULL , 
 
-    
+
     current_indexing_block BIGINT, 
     synced BOOL NOT NULL DEFAULT false,
 
 
 
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() ,
     
-     
+    UNIQUE (contract_name)
 );
 
  

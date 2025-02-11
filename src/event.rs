@@ -191,7 +191,7 @@ pub fn try_identify_event_for_log(
     None 
 }
 
-
+/*
 pub async fn find_most_recent_event_blocknumber( 
     contract_address: Address,
     psql_db: &mut Database
@@ -207,7 +207,7 @@ pub async fn find_most_recent_event_blocknumber(
       most_recent_event_for_contract_address.and_then(|event|  event.block_number )
     
       
-}
+}*/
 
 fn decimal_to_u64 (input: &Decimal) -> Option< U64  > {
 

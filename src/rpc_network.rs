@@ -47,6 +47,20 @@ impl RpcNetwork {
 
     }
 
+
+    
+    pub fn get_chain_id(&self) -> u64 {
+        match self { 
+
+            Self::Mainnet => 1,
+            Self::Polygon => 137,
+            Self::Arbitrum => 42161,
+            Self::Base => 8453
+        }
+
+
+    }
+
     pub fn get_rpc_url_env_var(&self) -> &str {
         match self { 
 

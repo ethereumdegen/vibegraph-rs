@@ -6,18 +6,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       dotenv().ok();
      
 
-        let credentials = DatabaseCredentials::from_env();
+      //  let credentials = DatabaseCredentials::from_env();
 
-       let conn_url = credentials.build_connection_url();
+      // let conn_url = credentials.build_connection_url();
 
-        
+           let db_conn_url =  std::env::var(  "DB_CONN_URL"  )
+        .expect(" DB_CONN_URL must be set in env ");
+
       
     
-      println!("migrating db: {}", conn_url);
+      println!("migrating db: {}", db_conn_url);
 
 
 
-    let mut database = Database::connect(conn_url, None).await?;
+    let mut database = Database::connect(db_conn_url, None).await?;
 
     let _migration = database.migrate().await?;
 

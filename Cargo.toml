@@ -34,6 +34,8 @@ inquire = "0.6.2"
  #degen-sql={path="../degen-sql"}
 
 rust_decimal = { version = "1.33.1", features = ["db-tokio-postgres"] }  
+url = "2.5.4"
+chrono = "0.4.39"
 
 
  
@@ -48,6 +50,11 @@ path = "src/db/postgres/scripts/migrate.rs"
 name = "rollback_full"
 path = "src/db/postgres/scripts/rollback_full.rs"
  
+ [[bin]]
+name = "add_event_indexers"
+path = "src/db/postgres/scripts/add_event_indexers.rs"
+ 
+
 
 [[bin]]
 name = "vibegraph"

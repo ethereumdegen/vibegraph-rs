@@ -10,10 +10,14 @@
 
 
 
+use std::env;
+use ethers::abi::Abi;
+use std::fs;
+use serde_json::from_str;
 use std::collections::HashMap;
 use degen_sql::db::postgres::postgres_db::DatabaseCredentials;
 use ethers::core::k256::pkcs8::der;
-use vibegraph::{IndexingConfig, ContractConfig, AppConfig, Vibegraph};
+use vibegraph::{rpc_network::RpcNetwork, AppConfig, ContractConfig, IndexingConfig, Vibegraph};
 
 
  
@@ -40,10 +44,23 @@ async fn main() {
     env_logger::init();
     dotenv().expect(".env file not found");
 
-    let rpc_uri =  std::env::var("RPC_URL")
-        .expect("RPC_URL must be set");
+    //let rpc_uri =  std::env::var("RPC_URL")
+    //    .expect("RPC_URL must be set");
 
     
+
+    let networks = vec![
+     RpcNetwork::Mainnet,
+     RpcNetwork::Base,
+     RpcNetwork::Arbitrum,
+     RpcNetwork::Polygon, 
+    ];
+
+     let chain_ids: Vec<u64> = networks.iter().map(|n| n.get_chain_id()).collect();
+
+ 
+
+
     let indexing_config = IndexingConfig {
         // rpc_uri,
          index_rate: 4_000, //ms
@@ -52,10 +69,13 @@ async fn main() {
          fine_block_gap: 100,
          safe_event_count: 400,  //not used for now 
 
+         network_chain_ids: chain_ids.clone(),
+
+
     };
     
-    let config_folder_path =  "config/".into() ;
-    let abi_folder_path =  "abi/".into() ;
+  //  let config_folder_path =  "config/".to_string() ;
+    let abi_folder_path =  "abi/".to_string() ;
 
 
  
@@ -64,17 +84,10 @@ async fn main() {
         .expect("RPC_URL must be set");
 
 
-    let networks = vec![
-    RpcNetwork::Mainnet,
-     RpcNetwork::Base,
-     RpcNetwork::Arbitrum,
-     RpcNetwork::Polygon, 
-    ];
-
-    let chain_ids = networks.map(|n| n.get_chain_id()).collect();
+   
   //  let (contract_config_map, chain_ids) = load_contract_configs(&config_folder_path);
     let contract_abi_map = load_contract_abis(&abi_folder_path);
-    let rpc_uri_map = map_rpc_uris(&chain_ids);
+    let rpc_uri_map = load_rpc_uris(&chain_ids);
 
 
  
@@ -128,7 +141,7 @@ pub fn load_contract_abis(config_folder_path: &str) -> HashMap<String, Abi> {
         if path.is_file() {
             let abi_content = fs::read_to_string(&path).expect("Could not read ABI file");
             let contract_abi: Abi = from_str(&abi_content).expect("Could not parse ABI");
-            contract_abi_map.insert(path.to_str().unwrap().to_string(), contract_abi);
+            contract_abi_map.insert(path.file_stem().unwrap().to_str().unwrap().to_string(), contract_abi);
         }
     }
 

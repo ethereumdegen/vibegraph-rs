@@ -392,7 +392,9 @@ checksum = "7e36cc9d416881d2e24f9a963be5fb1cd90966419ac844274161d10488b3e825"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -3903,6 +3905,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vibegraph"
 version = "0.3.15"
 dependencies = [
+ "chrono",
  "degen-sql",
  "dotenvy",
  "env_logger",
@@ -3917,6 +3920,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-postgres-migration",
+ "url",
 ]
 
 [[package]]

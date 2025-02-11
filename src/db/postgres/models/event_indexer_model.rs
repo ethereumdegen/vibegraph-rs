@@ -18,9 +18,9 @@ use degen_sql::db::postgres::postgres_db::Database;
 
 
 
-
+#[derive(Clone,Debug)]
 pub struct EventIndexer {
-    pub id: u64,
+    //pub id: u64,
     pub contract_name: String,
     pub contract_address: Address,
     pub chain_id: u64,
@@ -31,6 +31,31 @@ pub struct EventIndexer {
 }
 
 impl EventIndexer {
+	pub fn new (
+		contract_name: String, 
+		contract_address: Address,
+		chain_id: u64, 
+		start_block: u64,
+
+
+	) -> Self  {
+
+		Self {
+
+
+			contract_name,
+			contract_address,
+			chain_id,
+			start_block,
+			current_indexing_block: None,
+			synced: false 
+
+		}
+
+
+
+
+	}
 
 
     pub fn from_row(row: &Row) -> Result<Self, PostgresModelError>{
@@ -41,7 +66,7 @@ impl EventIndexer {
 
 
         Ok( Self{ 
-        	     id: (row.get::<_, i64>("id")) as u64 , 
+        	    
         	     contract_name: row.get("contract_name"),
                  contract_address  ,
 
@@ -70,66 +95,109 @@ impl EventIndexerModel {
 
 
 	pub async fn find_next_event_indexer(
-	    offset_indexer_id:i64,
+	    offset_indexer_id: Option<i32>,
 	    psql_db: &mut Database,
-	) -> Result< EventIndexer, PostgresModelError> {
+	) -> Result< ( i32 , EventIndexer ), PostgresModelError> {
 	    
-	      let query = "
-            SELECT id, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
-            FROM event_indexers
-            WHERE id > $1
-            ORDER BY id ASC
-            LIMIT 1;
-        ";
+	     
 
-        let row = psql_db.query_one_with_reconnect(query, &[&offset_indexer_id]).await?;
+        let row = match offset_indexer_id {
+
+
+        	Some(index) => {
+
+
+        		let index = index as i32; 
+
+
+        		   let query = "
+			            SELECT id, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
+			            FROM event_indexers
+			            WHERE id > $1
+			            ORDER BY id ASC
+			            LIMIT 1;
+			        ";
+
+			        psql_db.query_one_with_reconnect(query, &[&index]).await? 
+
+        	},
+
+        	None => {
+
+        		   let query = "
+			            SELECT id, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
+			            FROM event_indexers
+			           
+			            ORDER BY id ASC
+			            LIMIT 1;
+			        ";
+
+			        psql_db.query_one_with_reconnect(query, &[ ]).await?
+
+
+
+        	}
+
+
+
+        };
  	
 
+        let indexer = EventIndexer::from_row(&row)? ;
 
- 		EventIndexer::from_row(&row)
+
+        let id = (row.get::<_, i32>("id"))    ; 
+
+
+ 		Ok(  ( id , indexer ) )
 	    
 	}
 	     
 	     
 
 
-	    pub async fn insert_event_indexer(
-        event: &ContractEvent,
+	 pub async fn insert_one(
+        event: &EventIndexer,
         psql_db: &mut Database,
-    ) -> Result<i32, PostgresModelError> {
-        let contract_address = event.address.to_string();
-        let contract_name = &event.name;
+    ) -> Result<u64, PostgresModelError> { // Return type changed to u64 to match the id type
+        let contract_address = format!( "{:?}" , event.contract_address );
+        let contract_name = &event.contract_name;
 
-        let chain_id = event.chain_id as  i64 ;
-        let start_block = event.block_number.map(|num| num.as_u64() as i64);
+        let chain_id = event.chain_id as i64; // Casting to i64 as PostgreSQL does not support u64 natively
+        let start_block = event.start_block as i64; // Same as above
 
-        let result = psql_db.query_one_with_reconnect(
+        let result = psql_db.execute_with_reconnect(
             "
             INSERT INTO event_indexers (
                 contract_name,
                 contract_address,
                 chain_id,
-                start_block
-            ) VALUES ($1, $2, $3, $4)
-            RETURNING id;
+                start_block 
+                 
+            ) VALUES ($1, $2, $3, $4 ) RETURNING id;
             ",
             &[
                 &contract_name,
                 &contract_address,
                 &chain_id,
                 &start_block,
-            ] 
-             
+                 
+            ],
         ).await;
 
-        result.map(|row| row.get(0))
+        result.map(|row| row     ) // Extracting the first column which is 'id'
     }
 
     pub async fn update_current_indexing_block(
         indexer_id: i32,
-        current_block: i64,
+        current_block: u64,
         psql_db: &mut Database,
     ) -> Result<(), PostgresModelError> {
+
+
+    	let current_block = current_block as i64; 
+
+    	
         psql_db.execute_with_reconnect(
             "
             UPDATE event_indexers

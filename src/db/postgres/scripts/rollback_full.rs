@@ -14,13 +14,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match ans {
         Ok(true) => {
-            let credentials = DatabaseCredentials::from_env();
+        //    let credentials = DatabaseCredentials::from_env();
         
-         let conn_url = credentials.build_connection_url();
+        // let conn_url = credentials.build_connection_url();
+
+           let db_conn_url =  std::env::var(  "DB_CONN_URL"  )
+        .expect(" DB_CONN_URL must be set in env ");
 
 
 
-            let mut database = Database::connect(conn_url, None).await?;
+            let mut database = Database::connect(db_conn_url, None).await?;
 
             let _migration = database.rollback_full().await?;
 

@@ -21,6 +21,7 @@ use degen_sql::db::postgres::postgres_db::Database;
 #[derive(Clone,Debug)]
 pub struct EventIndexer {
     //pub id: u64,
+    pub name: String, 
     pub contract_name: String,
     pub contract_address: Address,
     pub chain_id: u64,
@@ -32,6 +33,7 @@ pub struct EventIndexer {
 
 impl EventIndexer {
 	pub fn new (
+        name: String, 
 		contract_name: String, 
 		contract_address: Address,
 		chain_id: u64, 
@@ -42,8 +44,8 @@ impl EventIndexer {
 
 		Self {
 
-
-			contract_name,
+            name, 
+			contract_name,   
 			contract_address,
 			chain_id,
 			start_block,
@@ -66,7 +68,7 @@ impl EventIndexer {
 
 
         Ok( Self{ 
-        	    
+        	     name: row.get("name"), 
         	     contract_name: row.get("contract_name"),
                  contract_address  ,
 
@@ -111,7 +113,7 @@ impl EventIndexerModel {
 
 
         		   let query = "
-			            SELECT id, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
+			            SELECT id, name, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
 			            FROM event_indexers
 			            WHERE id > $1
 			            ORDER BY id ASC
@@ -125,7 +127,7 @@ impl EventIndexerModel {
         	None => {
 
         		   let query = "
-			            SELECT id, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
+			            SELECT id, name, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
 			            FROM event_indexers
 			           
 			            ORDER BY id ASC
@@ -146,7 +148,7 @@ impl EventIndexerModel {
         let indexer = EventIndexer::from_row(&row)? ;
 
 
-        let id = (row.get::<_, i32>("id"))    ; 
+        let id = row.get::<_, i32>("id")    ; 
 
 
  		Ok(  ( id , indexer ) )
@@ -157,26 +159,29 @@ impl EventIndexerModel {
 
 
 	 pub async fn insert_one(
-        event: &EventIndexer,
+        indexer: &EventIndexer,
         psql_db: &mut Database,
     ) -> Result<u64, PostgresModelError> { // Return type changed to u64 to match the id type
-        let contract_address = format!( "{:?}" , event.contract_address );
-        let contract_name = &event.contract_name;
+        let name = &indexer.name;
+        let contract_address = format!( "{:?}" , indexer.contract_address );
+        let contract_name = &indexer.contract_name;
 
-        let chain_id = event.chain_id as i64; // Casting to i64 as PostgreSQL does not support u64 natively
-        let start_block = event.start_block as i64; // Same as above
+        let chain_id = indexer.chain_id as i64; // Casting to i64 as PostgreSQL does not support u64 natively
+        let start_block = indexer.start_block as i64; // Same as above
 
         let result = psql_db.execute_with_reconnect(
             "
             INSERT INTO event_indexers (
+               name, 
                 contract_name,
                 contract_address,
                 chain_id,
                 start_block 
                  
-            ) VALUES ($1, $2, $3, $4 ) RETURNING id;
+            ) VALUES ($1, $2, $3, $4, $5 ) RETURNING id;
             ",
-            &[
+            &[ 
+               &name, 
                 &contract_name,
                 &contract_address,
                 &chain_id,

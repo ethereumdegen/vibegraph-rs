@@ -2,7 +2,7 @@ CREATE TABLE event_indexers (
     id SERIAL PRIMARY KEY,
     
     
-    
+    name VARCHAR(255) NOT NULL,
     contract_name VARCHAR(255) NOT NULL,
     contract_address VARCHAR(255) NOT NULL,     
     
@@ -19,7 +19,7 @@ CREATE TABLE event_indexers (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() ,
     
-    UNIQUE (contract_name)
+    UNIQUE (name)
 );
 
  

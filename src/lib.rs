@@ -94,22 +94,9 @@ pub async fn init (
          //   indexing_state,
         };
 
-    /*
-        //attach database 
-        let database = Arc::new(
-            Database::connect(database_credentials,None).await.unwrap()
-        ); 
-    
-        let mut app_state = AppState {
-            database: Arc::clone( Mutex::new( database )),            
-            indexing_state        
-        };
-        */
+   
         
-        //let chain_state = Arc::new(Mutex::new(ChainState::default()));
-        
-        
-        app_state = initialize(app_state, &app_config, /*&Arc::clone(&chain_state)*/).await;
+          initialize(&app_state, &app_config, /*&Arc::clone(&chain_state)*/).await;
     
         start(app_state, &Arc::clone(&indexing_state), &app_config,).await;
         
@@ -231,8 +218,33 @@ pub struct AppState {
      
 }
  
+#[derive(thiserror::Error, Debug)]
+pub enum CollectEventsError {
+    #[error("Missing RPC URI for chain")]
+    RpcUriMissing,
+
+    #[error("Failed to retrieve network data")]
+    NetworkDataMissing,
+
+    #[error("Missing ABI data for contract: {0}")]
+    AbiDataMissing(String),
+
+    #[error("Provider failure while reading contract events")]
+    ProviderFailure,
+
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] PostgresModelError),
+
+    #[error("Ethereum provider error: {0}")]
+    ProviderError(String),
+
+    #[error("Unknown error")]
+    Unknown,
+}
+
+
 async fn collect_events( 
-    mut app_state:AppState ,
+      app_state: &AppState ,
     app_config: &AppConfig,
 
     indexing_state: &Arc<Mutex<IndexingState>>,
@@ -240,7 +252,7 @@ async fn collect_events(
     event_indexer_id: &i32,
     event_indexer: &EventIndexer , 
   //   chain_state: Arc<Mutex<ChainState>>
-) -> AppState {
+) -> Result<(), CollectEventsError > {
 
     info!( "collecting events ... " );
    
@@ -263,7 +275,7 @@ async fn collect_events(
   
     let Some(rpc_uri) = app_config.rpc_uri_map.get( &chain_id ) else {
         warn!("no rpc uri");
-        return app_state; 
+        return Err(CollectEventsError::RpcUriMissing); 
     };
 
     let provider = Provider::<Http>::try_from(rpc_uri).unwrap( );
@@ -285,9 +297,9 @@ async fn collect_events(
         
         Some(network_data) => network_data.latest_block_number.clone() as u64,
         None => {  
-            
+                 warn!("no recent network data ");
             //could not read recent block number so we cant continue 
-            return app_state
+            return Err(CollectEventsError::NetworkDataMissing);
         }
         
     };
@@ -316,7 +328,7 @@ async fn collect_events(
     
     let Some(contract_abi )  = &app_config.contract_abi_map.get(current_index_contract_name) else {
         warn!("no abi:  {}", current_index_contract_name);
-        return app_state ;
+        return Err( CollectEventsError::AbiDataMissing( current_index_contract_name.into() )  ) ;
     }; 
 
   
@@ -333,13 +345,19 @@ async fn collect_events(
     //if we are synced up to 4 blocks from the chain head, skip collection. 
     if start_block > most_recent_block_number - 4 {
         info!( "Fully synced- skipping event collection {} {}" , start_block,most_recent_block_number );
-        return app_state
+
+         return Ok(());
+
+        // return app_state
     }
  
-     info!("index starting at {}", start_block);
+   
     
     
     let mut end_block = start_block + std::cmp::max(block_gap as u64 - 1, 1);
+
+      info!("index starting at {} - {}", start_block, end_block);
+
     
     if end_block >= most_recent_block_number {
         end_block = most_recent_block_number;
@@ -355,7 +373,7 @@ async fn collect_events(
         *chain_id 
     ).await {
         Ok( evts ) => evts,
-        Err(_e) => { 
+        Err(e) => { 
                 
            
             //we increase the failure level which will shrink the block gap to ease the load on the provider in case that was the issue
@@ -369,10 +387,15 @@ async fn collect_events(
               //max failure level is 8 
           /*  app_state.indexing_state.provider_failure_level = std::cmp::min( 
                 app_state.indexing_state.provider_failure_level , 8 );*/
-              
-            return app_state
+                
+                warn!("index failed.. new failure level {:?}  ", provider_failure_level );
+    
+                 warn!("  {:?}  ", e );
+            return Err(CollectEventsError::ProviderFailure)  ; //retry me if so !! 
         }       
     };
+
+ 
         
         
     //on success we reduce the failure level 
@@ -431,7 +454,9 @@ async fn collect_events(
 
 
 
-    app_state
+  //  app_state
+
+  Ok(())
 } 
 
 
@@ -440,11 +465,11 @@ async fn collect_events(
  
 
 async fn initialize(
-    mut app_state: AppState, 
+      app_state: &AppState, 
     app_config: &AppConfig ,
    // chain_state: &Arc<Mutex<ChainState>>
     
-    ) -> AppState {
+    )   {
  
     
      
@@ -518,7 +543,7 @@ async fn initialize(
     
 
    
-    app_state 
+    
 
 }
 
@@ -553,7 +578,7 @@ async fn start(
 
 
 
-                let mut current_indexer_id = indexing_state.lock().await.current_indexer_id .clone() ;
+                let   current_indexer_id = indexing_state.lock().await.current_indexer_id .clone() ;
 
                   let mut psql_db = app_state.database.lock().await;
 
@@ -561,30 +586,34 @@ async fn start(
                      current_indexer_id ,
                      &mut psql_db 
                  ).await ;
+                drop(psql_db);
 
-
+                info!("current_indexer_id {:?}", current_indexer_id);
              
                let (next_indexer_id,  next_indexer_data ) =  if let Ok( ( id,   ref indexer_data))   = next_indexer_result {
  
-                  //  current_indexer_id = Some(id) ;
-
+                   
                      ( Some( id.clone() ) , Some( indexer_data.clone() )  )
 
                 }else { 
 
-                     //  current_indexer_id = None ;  
+                    
 
                        ( None, None )
                 };
 
-                drop(psql_db);
+                
                 drop(next_indexer_result);
+
+
+
+                info!("next_indexer_id {:?}", next_indexer_id);
 
                 if let Some( next_indexer_id ) = next_indexer_id {
 
                     if let Some(next_indexer_data) = next_indexer_data {
-                       app_state = collect_events(
-                        app_state,
+                      let collect_events_result =  collect_events(
+                        & app_state,
                          &Arc::clone(&app_config_arc), 
                          &Arc::clone( & indexing_state ),
 
@@ -592,10 +621,22 @@ async fn start(
                          &next_indexer_data ,
                         // Arc::clone(&chain_state)
                         ).await;
+                     
+
+
+                    match collect_events_result {
+
+                        Err( CollectEventsError::ProviderFailure ) => {
+                                //try this same one again .. 
+                        }
+                        _ => {
+
+                                indexing_state.lock().await.current_indexer_id  = Some( next_indexer_id ) ;
+                        }
+
                      }
-
-
-                indexing_state.lock().await.current_indexer_id  = Some( next_indexer_id ) ;
+                    }
+                
               }else {
                 indexing_state.lock().await.current_indexer_id  =  None  ; //reset 
 

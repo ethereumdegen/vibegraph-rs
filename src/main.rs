@@ -100,7 +100,7 @@ async fn main() {
         rpc_uri_map,
     //    contract_config_map,
         db_conn_url ,
-       
+        event_indexer_table_name: None ,
     };
     
     

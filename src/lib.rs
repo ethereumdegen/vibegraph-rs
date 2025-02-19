@@ -89,7 +89,7 @@ pub async fn init (
         };
 
         // Proper struct initialization
-        let mut app_state = AppState {
+        let app_state = AppState {
             database: Arc::clone(&database), // Clone Arc correctly
          //   indexing_state,
         };
@@ -209,7 +209,21 @@ pub struct AppConfig {
     pub contract_abi_map: HashMap<String, ethers::abi::Abi>,
 
     pub db_conn_url : String , 
+
+    pub event_indexer_table_name : Option<String>, 
+
+
   //  pub database_credentials: DatabaseCredentials , //if none we get them from env 
+}
+
+
+impl AppConfig {
+
+ fn get_event_indexer_table_name(&self) -> String {
+
+    self.event_indexer_table_name.clone().unwrap_or("event_indexers".to_string())
+ }
+
 }
  
 pub struct AppState {
@@ -255,7 +269,8 @@ async fn collect_events(
 ) -> Result<(), CollectEventsError > {
 
     info!( "collecting events ... " );
-   
+    
+    let event_indexer_table_name = app_config.get_event_indexer_table_name(); 
     
     let current_index_contract_name = &event_indexer.contract_name ;
     
@@ -436,8 +451,8 @@ async fn collect_events(
           info!("new_current_indexing_block {}", new_current_indexing_block);
 
           let mut psql_db = app_state.database.lock().await; // Lock database correctly
-          let _ = EventIndexerModel::update_current_indexing_block( *event_indexer_id , new_current_indexing_block, &mut psql_db).await;
-          let _ = EventIndexerModel::update_is_synced( *event_indexer_id , new_is_synced, &mut psql_db).await;
+          let _ = EventIndexerModel::update_current_indexing_block(event_indexer_table_name.clone(),  *event_indexer_id , new_current_indexing_block, &mut psql_db).await;
+          let _ = EventIndexerModel::update_is_synced(event_indexer_table_name.clone(), *event_indexer_id , new_is_synced, &mut psql_db).await;
           drop (psql_db);
 
           //update the provider failure level in state 
@@ -570,19 +585,26 @@ async fn start(
     
     let mut collect_blockchain_data_interval = interval( Duration::from_millis(
          app_config.indexing_config.update_block_number_rate ) );
+
+
+
+     
   
      loop {
         select! {
             _ = collect_events_interval.tick() => {
 
 
-
+                 let event_indexer_table_name = app_config.get_event_indexer_table_name();  
 
                 let   current_indexer_id = indexing_state.lock().await.current_indexer_id .clone() ;
 
                   let mut psql_db = app_state.database.lock().await;
 
+             
+
                 let next_indexer_result  = EventIndexerModel::find_next_event_indexer(
+                    event_indexer_table_name,
                      current_indexer_id ,
                      &mut psql_db 
                  ).await ;

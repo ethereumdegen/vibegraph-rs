@@ -97,6 +97,8 @@ impl EventIndexerModel {
 
 
 	pub async fn find_next_event_indexer(
+
+        table_name: String, 
 	    offset_indexer_id: Option<i32>,
 	    psql_db: &mut Database,
 	) -> Result< ( i32 , EventIndexer ), PostgresModelError> {
@@ -112,29 +114,29 @@ impl EventIndexerModel {
         		let index = index as i32; 
 
 
-        		   let query = "
+        		   let query =format!("
 			            SELECT id, name, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
-			            FROM event_indexers
+			            FROM  {}
 			            WHERE id > $1
 			            ORDER BY id ASC
 			            LIMIT 1;
-			        ";
+			        " ,table_name);
 
-			        psql_db.query_one_with_reconnect(query, &[&index]).await? 
+			        psql_db.query_one_with_reconnect(&query, &[   &index]).await? 
 
         	},
 
         	None => {
 
-        		   let query = "
+        		   let query = format!("
 			            SELECT id, name, contract_name, contract_address, chain_id, start_block, current_indexing_block, synced, created_at
-			            FROM event_indexers
+			            FROM  {}
 			           
 			            ORDER BY id ASC
 			            LIMIT 1;
-			        ";
+			        ",table_name);
 
-			        psql_db.query_one_with_reconnect(query, &[ ]).await?
+			        psql_db.query_one_with_reconnect(&query, &[  ]).await?
 
 
 
@@ -159,6 +161,7 @@ impl EventIndexerModel {
 
 
 	 pub async fn insert_one(
+         table_name: String,  
         indexer: &EventIndexer,
         psql_db: &mut Database,
     ) -> Result<u64, PostgresModelError> { // Return type changed to u64 to match the id type
@@ -169,18 +172,24 @@ impl EventIndexerModel {
         let chain_id = indexer.chain_id as i64; // Casting to i64 as PostgreSQL does not support u64 natively
         let start_block = indexer.start_block as i64; // Same as above
 
-        let result = psql_db.execute_with_reconnect(
+
+         let query = format!(
             "
-            INSERT INTO event_indexers (
-               name, 
+            INSERT INTO {} (
+                name, 
                 contract_name,
                 contract_address,
                 chain_id,
-                start_block 
-                 
-            ) VALUES ($1, $2, $3, $4, $5 ) RETURNING id;
+                start_block
+            ) VALUES ($1, $2, $3, $4, $5) RETURNING id;
             ",
+            table_name // Table name injected safely as it's a trusted input
+        );
+
+        let result = psql_db.execute_with_reconnect(
+           &query,
             &[ 
+            
                &name, 
                 &contract_name,
                 &contract_address,
@@ -194,6 +203,7 @@ impl EventIndexerModel {
     }
 
     pub async fn update_current_indexing_block(
+         table_name: String, 
         indexer_id: i32,
         current_block: u64,
         psql_db: &mut Database,
@@ -202,14 +212,17 @@ impl EventIndexerModel {
 
     	let current_block = current_block as i64; 
 
-    	
-        psql_db.execute_with_reconnect(
-            "
-            UPDATE event_indexers
+    	let query = format!( 
+
+              "
+            UPDATE  {}
             SET current_indexing_block = $1
             WHERE id = $2;
-            ",
-            &[&current_block, &indexer_id] 
+            ", table_name
+            );
+        psql_db.execute_with_reconnect(
+          &query,
+            &[  &current_block, &indexer_id] 
            
         ).await?;
 
@@ -217,30 +230,27 @@ impl EventIndexerModel {
     }
 
     pub async fn update_is_synced(
+         table_name: String, 
         indexer_id: i32,
         is_synced: bool, 
         psql_db: &mut Database,
     ) -> Result<(), PostgresModelError> {
+
+        let query = format!( 
+
+              "
+             UPDATE  {}
+            SET synced = $2
+            WHERE id = $3;
+            ", table_name
+            );
+
         psql_db.execute_with_reconnect(
-            "
-            UPDATE event_indexers
-            SET synced = $1
-            WHERE id = $2;
-            ",
-            &[&is_synced,&indexer_id] 
+          &query,
+            &[  &is_synced,&indexer_id] 
             
         ).await?;
 
         Ok(())
     }
-}
-
-fn decimal_to_u64(input: &Decimal) -> Option<U64> {
-    input.to_u128().and_then(|val| {
-        if val > u64::MAX as u128 {
-            None
-        } else {
-            Some(U64::from(val as u64))
-        }
-    })
-}
+} 

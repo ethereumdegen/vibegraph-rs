@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 
-    let mut database = Database::connect(db_conn_url, None).await?;
+    let mut database = Database::new(db_conn_url, None) ?;
 
     let lender_pools_factory_arbitrum = EventIndexer::new(
       "lender_pools_factory_arbitrum".to_string(),
@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let table_name = "event_indexers"; 
 
-    let _ = EventIndexerModel::insert_one( table_name.to_string() , &lender_pools_factory_arbitrum , &mut database ).await; 
+    let _ = EventIndexerModel::insert_one( table_name.to_string() , &lender_pools_factory_arbitrum , &  database ).await; 
  
 
      // EventIndexer creation and insertion for Tellerv2 on Arbitrum
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Arbitrum.get_chain_id(),
         108629279,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_arbitrum, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_arbitrum, &  database).await;
 
     // EventIndexer creation and insertion for Lender Pools Factory on Base
     let lender_pools_factory_base = EventIndexer::new(
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Base.get_chain_id(),
         24824438,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &lender_pools_factory_base, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &lender_pools_factory_base, &  database).await;
 
     // EventIndexer creation and insertion for Tellerv2 on Base
     let tellerv2_base = EventIndexer::new(
@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Base.get_chain_id(),
         2935370,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_base, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_base, &  database).await;
 
     // EventIndexer creation and insertion for Lender Pools Factory on Mainnet
     let lender_pools_factory_mainnet = EventIndexer::new(
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Mainnet.get_chain_id(),
         21616926,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &lender_pools_factory_mainnet, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &lender_pools_factory_mainnet, &  database).await;
 
     // EventIndexer creation and insertion for Tellerv2 on Mainnet
     let tellerv2_mainnet = EventIndexer::new(
@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Mainnet.get_chain_id(),
         15094701,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_mainnet, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_mainnet, &  database).await;
 
     // EventIndexer creation and insertion for Lender Pools Factory on Polygon
     let lender_pools_factory_polygon = EventIndexer::new(
@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Polygon.get_chain_id(),
         66265322,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &lender_pools_factory_polygon, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &lender_pools_factory_polygon, &  database).await;
 
     // EventIndexer creation and insertion for Tellerv2 on Polygon
     let tellerv2_polygon = EventIndexer::new(
@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RpcNetwork::Polygon.get_chain_id(),
         26017630,
     );
-    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_polygon, &mut database).await;
+    let _ = EventIndexerModel::insert_one(table_name.to_string() , &tellerv2_polygon, &  database).await;
 
 
 

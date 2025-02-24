@@ -30,7 +30,7 @@ impl EventsModel {
     pub async fn insert_one(
     event: &ContractEvent  ,
   
-    psql_db: &mut Database,
+    psql_db: &  Database,
 ) -> Result<i32, PostgresModelError> {
        
          
@@ -74,7 +74,7 @@ impl EventsModel {
 
         // Set a timeout (e.g., 5 seconds)
         let insert_result =  
-            psql_db.query_one_with_reconnect(
+            psql_db.query_one(
                 "
                 INSERT INTO events 
                 (
@@ -109,21 +109,21 @@ impl EventsModel {
             
         ).await;
 
-          insert_result.map(|r| r.get(0)) 
+          Ok(insert_result.map(|r| r.get::<_,i32>("id"))?) 
          
     }
      
      
 pub async fn find_most_recent_event(
     contract_address: Address,
-    psql_db: &mut Database,
+    psql_db: &  Database,
 ) -> Result< ContractEvent, PostgresModelError> {
     
     
     let parsed_contract_address = to_checksum(&contract_address, None).to_string();
          
     
-    let row = psql_db.query_one_with_reconnect(
+    let row = psql_db.query_one (
         "
         SELECT 
             contract_address,
@@ -160,7 +160,7 @@ pub async fn find_most_recent_event(
         }, 
         Err(e) => {
             eprintln!("Database error: Recent Event {:?}", e);
-            Err( e) 
+            Err( e .into() ) 
         }
     }
 }

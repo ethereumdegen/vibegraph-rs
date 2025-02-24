@@ -80,7 +80,7 @@ pub async fn init (
         
 
          // Attach database with proper error handling
-        let database = match Database::connect(database_credentials, None).await {
+        let database = match Database::new(database_credentials, None) {
             Ok(db) => Arc::new(Mutex::new(db)),  // Wrap in Arc<Mutex<T>> properly
             Err(e) => {
                 eprintln!("Failed to connect to database: {}", e);

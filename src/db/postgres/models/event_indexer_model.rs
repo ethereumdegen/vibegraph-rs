@@ -100,7 +100,7 @@ impl EventIndexerModel {
 
         table_name: String, 
 	    offset_indexer_id: Option<i32>,
-	    psql_db: &mut Database,
+	    psql_db: &  Database,
 	) -> Result< ( i32 , EventIndexer ), PostgresModelError> {
 	    
 	     
@@ -122,7 +122,7 @@ impl EventIndexerModel {
 			            LIMIT 1;
 			        " ,table_name);
 
-			        psql_db.query_one_with_reconnect(&query, &[   &index]).await? 
+			        psql_db.query_one(&query, &[   &index]).await? 
 
         	},
 
@@ -136,7 +136,7 @@ impl EventIndexerModel {
 			            LIMIT 1;
 			        ",table_name);
 
-			        psql_db.query_one_with_reconnect(&query, &[  ]).await?
+			        psql_db.query_one(&query, &[  ]).await?
 
 
 
@@ -163,7 +163,7 @@ impl EventIndexerModel {
 	 pub async fn insert_one(
          table_name: String,  
         indexer: &EventIndexer,
-        psql_db: &mut Database,
+        psql_db: &  Database,
     ) -> Result<u64, PostgresModelError> { // Return type changed to u64 to match the id type
         let name = &indexer.name;
         let contract_address = format!( "{:?}" , indexer.contract_address );
@@ -186,7 +186,7 @@ impl EventIndexerModel {
             table_name // Table name injected safely as it's a trusted input
         );
 
-        let result = psql_db.execute_with_reconnect(
+        let result = psql_db.execute(
            &query,
             &[ 
             
@@ -199,14 +199,14 @@ impl EventIndexerModel {
             ],
         ).await;
 
-        result.map(|row| row     ) // Extracting the first column which is 'id'
+        Ok(result.map(|row| row     )?) // Extracting the first column which is 'id'
     }
 
     pub async fn update_current_indexing_block(
          table_name: String, 
         indexer_id: i32,
         current_block: u64,
-        psql_db: &mut Database,
+        psql_db: &  Database,
     ) -> Result<(), PostgresModelError> {
 
 
@@ -220,7 +220,7 @@ impl EventIndexerModel {
             WHERE id = $2;
             ", table_name
             );
-        psql_db.execute_with_reconnect(
+        psql_db.execute (
           &query,
             &[  &current_block, &indexer_id] 
            
@@ -233,7 +233,7 @@ impl EventIndexerModel {
          table_name: String, 
         indexer_id: i32,
         is_synced: bool, 
-        psql_db: &mut Database,
+        psql_db: &  Database,
     ) -> Result<(), PostgresModelError> {
 
         let query = format!( 
@@ -245,7 +245,7 @@ impl EventIndexerModel {
             ", table_name
             );
 
-        psql_db.execute_with_reconnect(
+        psql_db.execute (
           &query,
             &[  &is_synced,&indexer_id] 
             

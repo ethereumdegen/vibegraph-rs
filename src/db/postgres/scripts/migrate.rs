@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 
-    let mut database = Database::connect(db_conn_url, None).await?;
+    let mut database = Database::new(db_conn_url, None)?;
 
     let _migration = database.migrate().await?;
 

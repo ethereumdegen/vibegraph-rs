@@ -20,7 +20,7 @@ impl NetworkData {
           psql_db: &mut Database,
     ) -> Result<Self, PostgresModelError> {
         let statement =  "INSERT INTO network_data (chain_id, latest_block_number) VALUES ($1, $2) RETURNING id " ;
-        let row = psql_db.query_one_with_reconnect(&statement, &[&chain_id, &latest_block_number]).await?;
+        let row = psql_db.query_one (&statement, &[&chain_id, &latest_block_number]).await?;
 
         Ok(Self {
             id: row.get(0),
@@ -44,7 +44,7 @@ impl NetworkData {
                          RETURNING id";
 
         // Execute the query
-        let row = psql_db.query_one_with_reconnect(&statement, &[&chain_id, &latest_block_number]).await?;
+        let row = psql_db.query_one (&statement, &[&chain_id, &latest_block_number]).await?;
 
         // Return the updated/inserted row
         Ok(Self {
@@ -61,7 +61,7 @@ impl NetworkData {
           psql_db: &mut Database,
     ) -> Result<Self, PostgresModelError> {
         let statement =  "SELECT id, latest_block_number  FROM network_data WHERE chain_id = $1 ORDER BY created_at DESC LIMIT 1" ;
-        let row = psql_db.query_one_with_reconnect(&statement, &[&chain_id]).await?;
+        let row = psql_db.query_one (&statement, &[&chain_id]).await?;
 
         Ok(Self {
             id: row.get(0),

@@ -614,9 +614,9 @@ checksum = "0e60eed09d8c01d3cee5b7d30acb059b76614c918fa0f992e0dd6eeb10daad6f"
 
 [[package]]
 name = "degen-sql"
-version = "0.1.14"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28c44eae8abe5f3111378af1d86db971ef61ad6d4e85d2cd502970bd07314c53"
+checksum = "3d46962b8a438cba7bce84bfae603a1bb69b4eb0aa1a68385a1f49cdf580130e"
 dependencies = [
  "dotenvy",
  "env_logger",
@@ -3903,7 +3903,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vibegraph"
-version = "0.3.20"
+version = "0.3.22"
 dependencies = [
  "chrono",
  "degen-sql",

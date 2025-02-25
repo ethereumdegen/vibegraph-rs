@@ -1,6 +1,7 @@
 
 
 
+use degen_sql::db::postgres::postgres_db::DatabaseError;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -77,10 +78,10 @@ impl ContractEvent {
         }
     } 
 
-    pub fn from_row(row: &Row) -> Result<Self, PostgresModelError>{
+    pub fn from_row(row: &Row) -> Result<Self, DatabaseError>{
 
           let contract_address = Address::from_str(&row.get::<_, String>("contract_address"))
-                .map_err(|e| PostgresModelError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
+                .map_err(|e| DatabaseError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
 
 
 

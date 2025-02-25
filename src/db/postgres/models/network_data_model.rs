@@ -1,6 +1,5 @@
-use degen_sql::db::postgres::models::model::PostgresModelError;
+use degen_sql::db::postgres::postgres_db::DatabaseError;
 use degen_sql::db::postgres::postgres_db::Database;
-use chrono::{DateTime, Utc};
 use tokio_postgres::Error as PostgresError;
 
 
@@ -18,7 +17,7 @@ impl NetworkData {
         chain_id: i64,
         latest_block_number: i64,
           psql_db: &mut Database,
-    ) -> Result<Self, PostgresModelError> {
+    ) -> Result<Self, DatabaseError> {
         let statement =  "INSERT INTO network_data (chain_id, latest_block_number) VALUES ($1, $2) RETURNING id " ;
         let row = psql_db.query_one (&statement, &[&chain_id, &latest_block_number]).await?;
 
@@ -35,7 +34,7 @@ impl NetworkData {
         chain_id: i64,
         latest_block_number: i64,
         psql_db: &mut Database,
-    ) -> Result<Self, PostgresModelError> {
+    ) -> Result<Self, DatabaseError> {
         // SQL statement that handles both insert and update
         let statement = "INSERT INTO network_data (chain_id, latest_block_number) \
                          VALUES ($1, $2) \
@@ -59,7 +58,7 @@ impl NetworkData {
         
         chain_id: i64,
           psql_db: &mut Database,
-    ) -> Result<Self, PostgresModelError> {
+    ) -> Result<Self, DatabaseError> {
         let statement =  "SELECT id, latest_block_number  FROM network_data WHERE chain_id = $1 ORDER BY created_at DESC LIMIT 1" ;
         let row = psql_db.query_one (&statement, &[&chain_id]).await?;
 

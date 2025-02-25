@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use crate::event::ContractEvent;
 use degen_sql::db::postgres::models::model::PostgresModelError;
-use degen_sql::db::postgres::postgres_db::{Database, DatabaseError};
+use degen_sql::db::postgres::postgres_db::{Database };
 
 
 
@@ -60,10 +60,10 @@ impl EventIndexer {
 	}
 
 
-    pub fn from_row(row: &Row) -> Result<Self, DatabaseError>{
+    pub fn from_row(row: &Row) -> Result<Self, PostgresModelError>{
 
           let contract_address = Address::from_str(&row.get::<_, String>("contract_address"))
-                .map_err(|e| DatabaseError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
+                .map_err(|e| PostgresModelError::RowParseError(format!("Invalid contract address: {:?}", e).into()))?;
 
 
 
@@ -101,7 +101,7 @@ impl EventIndexerModel {
         table_name: String, 
 	    offset_indexer_id: Option<i32>,
 	    psql_db: &  Database,
-	) -> Result< ( i32 , EventIndexer ), DatabaseError> {
+	) -> Result< ( i32 , EventIndexer ), PostgresModelError> {
 	    
 	     
 
@@ -164,7 +164,7 @@ impl EventIndexerModel {
          table_name: String,  
         indexer: &EventIndexer,
         psql_db: &  Database,
-    ) -> Result<u64, DatabaseError> { // Return type changed to u64 to match the id type
+    ) -> Result<u64, PostgresModelError> { // Return type changed to u64 to match the id type
         let name = &indexer.name;
         let contract_address = format!( "{:?}" , indexer.contract_address );
         let contract_name = &indexer.contract_name;
@@ -207,7 +207,7 @@ impl EventIndexerModel {
         indexer_id: i32,
         current_block: u64,
         psql_db: &  Database,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<(), PostgresModelError> {
 
 
     	let current_block = current_block as i64; 
@@ -234,7 +234,7 @@ impl EventIndexerModel {
         indexer_id: i32,
         is_synced: bool, 
         psql_db: &  Database,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<(), PostgresModelError> {
 
         let query = format!( 
 

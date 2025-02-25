@@ -11,7 +11,7 @@ use tokio::time::timeout;
  
 use crate::{ event::ContractEvent};
 
-use degen_sql::db::postgres::{models::model::PostgresModelError, postgres_db::DatabaseError};
+use degen_sql::db::postgres::{models::model::PostgresModelError  };
 use degen_sql::db::postgres::postgres_db::Database;
  
  
@@ -31,7 +31,7 @@ impl EventsModel {
     event: &ContractEvent  ,
   
     psql_db: &  Database,
-) -> Result<i32, DatabaseError> {
+) -> Result<i32, PostgresModelError> {
        
          
          let contract_address = to_checksum(&event.address, None).to_string();
@@ -46,14 +46,14 @@ impl EventsModel {
 
          let transaction_hash = format!(
             "{:?}",
-            &event.transaction_hash.ok_or_else(|| DatabaseError::RowParseError( "Missing transaction hash".to_string()  ))?
+            &event.transaction_hash.ok_or_else(|| PostgresModelError::RowParseError( Some("Missing transaction hash".to_string())  ))?
         );
 
          
          
          let block_hash = format!(
                 "{:?}",
-                &event.block_hash.ok_or_else(|| DatabaseError::RowParseError( "Missing block hash".to_string()   ))?
+                &event.block_hash.ok_or_else(|| PostgresModelError::RowParseError( Some("Missing block hash".to_string())   ))?
            );
          
          
@@ -117,7 +117,7 @@ impl EventsModel {
 pub async fn find_most_recent_event(
     contract_address: Address,
     psql_db: &  Database,
-) -> Result< ContractEvent, DatabaseError> {
+) -> Result< ContractEvent, PostgresModelError> {
     
     
     let parsed_contract_address = to_checksum(&contract_address, None).to_string();

@@ -648,9 +648,9 @@ dependencies = [
 
 [[package]]
 name = "degen-sql"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "654468161409be7e76074d5504b10a25761c25893884bf424e1c739ead7f4c79"
+checksum = "9cabb8ed5daaa71ba7005c3374eb3fbf619036cb2b70c6423bcdd8b342787ccc"
 dependencies = [
  "deadpool",
  "deadpool-postgres",
@@ -3941,7 +3941,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vibegraph"
-version = "0.3.24"
+version = "0.3.25"
 dependencies = [
  "chrono",
  "degen-sql",

@@ -394,6 +394,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
@@ -648,10 +649,11 @@ dependencies = [
 
 [[package]]
 name = "degen-sql"
-version = "0.2.1"
+version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cabb8ed5daaa71ba7005c3374eb3fbf619036cb2b70c6423bcdd8b342787ccc"
+checksum = "54efd1686049d547cc8ca8179939c34670c5c1ee54ef7ec954b1cdd692c6f5f7"
 dependencies = [
+ "chrono",
  "deadpool",
  "deadpool-postgres",
  "dotenvy",
@@ -3941,7 +3943,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vibegraph"
-version = "0.3.25"
+version = "0.3.28"
 dependencies = [
  "chrono",
  "degen-sql",

@@ -21,9 +21,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
       println!("add event indexers: {}", db_conn_url);
 
+      let db_connections_max = 2; 
 
-
-    let mut database = Database::new(db_conn_url, None) ?;
+    let mut database = Database::new(db_conn_url,db_connections_max, None) ?;
 
     let lender_pools_factory_arbitrum = EventIndexer::new(
       "lender_pools_factory_arbitrum".to_string(),

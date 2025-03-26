@@ -77,10 +77,12 @@ pub async fn init (
         let indexing_state = Arc::new(Mutex::new( IndexingState::default() ));
 
         let database_credentials = app_config.db_conn_url.clone()  ;
+
+        let db_connections_max = app_config.db_connections_max.clone(); 
         
 
          // Attach database with proper error handling
-        let database = match Database::new(database_credentials, None) {
+        let database = match Database::new(database_credentials, db_connections_max,  None) {
             Ok(db) => Arc::new(Mutex::new(db)),  // Wrap in Arc<Mutex<T>> properly
             Err(e) => {
                 eprintln!("Failed to connect to database: {}", e);
@@ -209,6 +211,8 @@ pub struct AppConfig {
     pub contract_abi_map: HashMap<String, ethers::abi::Abi>,
 
     pub db_conn_url : String , 
+
+    pub db_connections_max: usize, 
 
     pub event_indexer_table_name : Option<String>, 
 

@@ -58,7 +58,7 @@ async fn main() {
 
      let chain_ids: Vec<u64> = networks.iter().map(|n| n.get_chain_id()).collect();
 
- 
+    let db_connections_max = 2; 
 
 
     let indexing_config = IndexingConfig {
@@ -100,6 +100,8 @@ async fn main() {
         rpc_uri_map,
     //    contract_config_map,
         db_conn_url ,
+
+        db_connections_max, 
         event_indexer_table_name: None ,
     };
     
